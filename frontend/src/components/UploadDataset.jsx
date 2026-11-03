@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "https://opspilot-p1wk.onrender.com";
 
 function UploadDataset({ onUploadSuccess }) {
   const [file, setFile] = useState(null);
