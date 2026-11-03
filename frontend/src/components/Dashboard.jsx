@@ -1,50 +1,40 @@
 import { useEffect, useState } from "react";
 
+
 const API_URL = "http://127.0.0.1:8000";
 
 
 function Dashboard({ activeDatasetId }) {
-
   const [data, setData] = useState(null);
-
   const [insights, setInsights] = useState([]);
-
   const [anomalies, setAnomalies] = useState(null);
 
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
 
   useEffect(() => {
-
     if (activeDatasetId) {
       loadDashboard();
     }
-
   }, [activeDatasetId]);
 
 
   const loadDashboard = async () => {
-
     try {
-
+      setLoading(true);
       setError("");
-      setData(null);
 
       const token = localStorage.getItem("token");
 
-
       if (!token) {
-
-        throw new Error(
-          "Please login first."
-        );
-
+        throw new Error("Please login first.");
       }
 
 
-      // =========================
-      // LOAD ANALYTICS
-      // =========================
+      /*
+        Load business analytics
+      */
 
       const analyticsResponse = await fetch(
         `${API_URL}/analytics/${activeDatasetId}`,
@@ -57,23 +47,19 @@ function Dashboard({ activeDatasetId }) {
 
 
       if (analyticsResponse.status === 401) {
-
         localStorage.removeItem("token");
         localStorage.removeItem("username");
 
         throw new Error(
           "Session expired. Please login again."
         );
-
       }
 
 
       if (!analyticsResponse.ok) {
-
         throw new Error(
-          "Failed to load analytics"
+          "Unable to load business analytics."
         );
-
       }
 
 
@@ -82,20 +68,18 @@ function Dashboard({ activeDatasetId }) {
 
 
       if (analyticsData.error) {
-
         throw new Error(
           analyticsData.error
         );
-
       }
 
 
       setData(analyticsData);
 
 
-      // =========================
-      // LOAD ANOMALIES
-      // =========================
+      /*
+        Load anomaly information
+      */
 
       const anomalyResponse = await fetch(
         `${API_URL}/analytics/${activeDatasetId}/anomalies`,
@@ -108,37 +92,30 @@ function Dashboard({ activeDatasetId }) {
 
 
       if (anomalyResponse.status === 401) {
-
         localStorage.removeItem("token");
         localStorage.removeItem("username");
 
         throw new Error(
           "Session expired. Please login again."
         );
-
       }
 
 
       if (anomalyResponse.ok) {
-
         const anomalyData =
           await anomalyResponse.json();
 
-
         if (!anomalyData.error) {
-
           setAnomalies(
             anomalyData.anomaly_detection
           );
-
         }
-
       }
 
 
-      // =========================
-      // LOAD AI INSIGHTS
-      // =========================
+      /*
+        Load AI insights
+      */
 
       const insightResponse = await fetch(
         `${API_URL}/analytics/${activeDatasetId}/insights`,
@@ -151,36 +128,27 @@ function Dashboard({ activeDatasetId }) {
 
 
       if (insightResponse.status === 401) {
-
         localStorage.removeItem("token");
         localStorage.removeItem("username");
 
         throw new Error(
           "Session expired. Please login again."
         );
-
       }
 
 
       if (insightResponse.ok) {
-
         const insightData =
           await insightResponse.json();
 
-
         if (!insightData.error) {
-
           setInsights(
             insightData.insights || []
           );
-
         }
-
       }
 
-
     } catch (error) {
-
       console.error(
         "Dashboard error:",
         error
@@ -188,121 +156,160 @@ function Dashboard({ activeDatasetId }) {
 
       setError(error.message);
 
+    } finally {
+      setLoading(false);
     }
-
   };
 
 
-  // =========================
-  // NO DATASET SELECTED
-  // =========================
+  /*
+    No dataset selected
+  */
 
   if (!activeDatasetId) {
-
     return (
-
       <div className="page-container">
 
-        <div className="page-header">
+        <div className="page-header dashboard-header">
+          <div>
+            <div className="page-eyebrow">
+              OPERATIONS OVERVIEW
+            </div>
 
-          <h1>
-            📊 Business Dashboard
-          </h1>
+            <h1>
+              Business Dashboard
+            </h1>
 
-          <p>
-            Real-time AI-powered business intelligence
-          </p>
-
+            <p>
+              Monitor business performance, data health,
+              anomalies and AI-generated insights.
+            </p>
+          </div>
         </div>
 
 
-        <div className="empty-state">
+        <div className="dashboard-empty">
+
+          <div className="dashboard-empty-icon">
+            📊
+          </div>
 
           <h2>
-            No Dataset Selected
+            Select a dataset to get started
           </h2>
 
           <p>
-            Please select a dataset from the Datasets page.
+            Choose a dataset from your workspace to
+            view business performance and operational
+            intelligence.
+          </p>
+
+          <div className="dashboard-empty-hint">
+            Open <strong>Datasets</strong> from the
+            sidebar and select a dataset.
+          </div>
+
+        </div>
+
+      </div>
+    );
+  }
+
+
+  /*
+    Error state
+  */
+
+  if (error) {
+    return (
+      <div className="page-container">
+
+        <div className="page-header dashboard-header">
+          <div>
+            <div className="page-eyebrow">
+              OPERATIONS OVERVIEW
+            </div>
+
+            <h1>
+              Business Dashboard
+            </h1>
+          </div>
+        </div>
+
+
+        <div className="dashboard-error">
+
+          <div className="dashboard-error-icon">
+            !
+          </div>
+
+          <div>
+            <h3>
+              Unable to load the dashboard
+            </h3>
+
+            <p>
+              {error}
+            </p>
+          </div>
+
+          <button
+            className="primary-button"
+            onClick={loadDashboard}
+          >
+            Try again
+          </button>
+
+        </div>
+
+      </div>
+    );
+  }
+
+
+  /*
+    Loading state
+  */
+
+  if (loading || !data) {
+    return (
+      <div className="page-container">
+
+        <div className="page-header dashboard-header">
+          <div>
+            <div className="page-eyebrow">
+              OPERATIONS OVERVIEW
+            </div>
+
+            <h1>
+              Business Dashboard
+            </h1>
+
+            <p>
+              Preparing your business intelligence...
+            </p>
+          </div>
+        </div>
+
+
+        <div className="dashboard-loading">
+
+          <div className="loading-spinner"></div>
+
+          <p>
+            Loading business data
           </p>
 
         </div>
 
       </div>
-
     );
-
   }
 
 
-  // =========================
-  // ERROR
-  // =========================
-
-  if (error) {
-
-    return (
-
-      <div className="page-container">
-
-        <div className="page-header">
-
-          <h1>
-            📊 Business Dashboard
-          </h1>
-
-        </div>
-
-
-        <div className="error">
-
-          ❌ {error}
-
-        </div>
-
-
-        <button
-          className="retry-button"
-          onClick={loadDashboard}
-        >
-
-          🔄 Try Again
-
-        </button>
-
-      </div>
-
-    );
-
-  }
-
-
-  // =========================
-  // LOADING
-  // =========================
-
-  if (!data) {
-
-    return (
-
-      <div className="page-container">
-
-        <div className="loading">
-
-          ⏳ Loading dashboard...
-
-        </div>
-
-      </div>
-
-    );
-
-  }
-
-
-  // =========================
-  // DATA
-  // =========================
+  /*
+    Business data
+  */
 
   const metrics =
     data.business_metrics || {};
@@ -311,367 +318,690 @@ function Dashboard({ activeDatasetId }) {
     data.data_quality || {};
 
 
+  const totalRevenue =
+    Number(metrics.total_revenue || 0);
+
+
+  const totalUnits =
+    Number(metrics.total_units_sold || 0);
+
+
+  const averageOrderValue =
+    Number(
+      metrics.average_order_value || 0
+    );
+
+
+  const qualityScore =
+    Number(
+      quality.quality_score || 0
+    );
+
+
+  const anomalyCount =
+    Number(
+      anomalies?.anomaly_records || 0
+    );
+
+
+  const anomalyPercentage =
+    Number(
+      anomalies?.anomaly_percentage || 0
+    );
+
+
+  const totalRows =
+    Number(
+      quality.total_rows || data.rows || 0
+    );
+
+
+  const formatCurrency = (value) => {
+    return `₹${Number(value).toLocaleString("en-IN")}`;
+  };
+
+
+  const formatNumber = (value) => {
+    return Number(value).toLocaleString("en-IN");
+  };
+
+
+  const qualityLabel =
+    qualityScore >= 90
+      ? "Excellent"
+      : qualityScore >= 75
+        ? "Good"
+        : qualityScore >= 50
+          ? "Needs attention"
+          : "Poor";
+
+
+  const anomalyLabel =
+    anomalyCount === 0
+      ? "No anomalies detected"
+      : `${anomalyCount} record${anomalyCount === 1 ? "" : "s"} flagged`;
+
+
   return (
+    <div className="page-container dashboard-page">
 
-    <div className="page-container">
+
+      {/* =========================================
+          HEADER
+          ========================================= */}
+
+      <div className="page-header dashboard-header">
+
+        <div>
+
+          <div className="page-eyebrow">
+            OPERATIONS OVERVIEW
+          </div>
+
+          <h1>
+            Business Dashboard
+          </h1>
+
+          <p>
+            A real-time view of your business
+            performance and operational signals.
+          </p>
+
+        </div>
 
 
-      {/* =========================
-          PAGE HEADER
-      ========================= */}
-
-      <div className="page-header">
-
-        <h1>
-          📊 Business Dashboard
-        </h1>
-
-        <p>
-          Real-time AI-powered business intelligence
-        </p>
+        <button
+          className="dashboard-refresh"
+          onClick={loadDashboard}
+        >
+          ↻ Refresh
+        </button>
 
       </div>
 
 
-      {/* =========================
+      {/* =========================================
           ACTIVE DATASET
-      ========================= */}
+          ========================================= */}
 
-      <div className="analytics-section">
+      <div className="active-dataset-banner">
 
-        <h2>
-          📁 Active Dataset: {data.file_name}
-        </h2>
+        <div className="active-dataset-left">
 
-        <p>
-          Dataset ID: {activeDatasetId}
-        </p>
+          <div className="dataset-status-dot"></div>
 
-      </div>
+          <div>
 
-
-      {/* =========================
-          METRICS
-      ========================= */}
-
-      <div className="analytics-results">
-
-
-        {/* TOTAL REVENUE */}
-
-        <div className="metric-card">
-
-          <span>
-            💰
-          </span>
-
-          <h3>
-            Total Revenue
-          </h3>
-
-          <p>
-
-            ₹
-            {metrics.total_revenue
-              ? Number(
-                  metrics.total_revenue
-                ).toLocaleString("en-IN")
-              : 0}
-
-          </p>
-
-        </div>
-
-
-        {/* UNITS SOLD */}
-
-        <div className="metric-card">
-
-          <span>
-            📦
-          </span>
-
-          <h3>
-            Units Sold
-          </h3>
-
-          <p>
-            {metrics.total_units_sold || 0}
-          </p>
-
-        </div>
-
-
-        {/* DATA QUALITY */}
-
-        <div className="metric-card">
-
-          <span>
-            🔍
-          </span>
-
-          <h3>
-            Data Quality
-          </h3>
-
-          <p>
-            {quality.quality_score || 0}%
-          </p>
-
-        </div>
-
-
-        {/* ANOMALIES */}
-
-        <div className="metric-card">
-
-          <span>
-            ⚠️
-          </span>
-
-          <h3>
-            Anomalies
-          </h3>
-
-          <p>
-            {anomalies?.anomaly_records || 0}
-          </p>
-
-        </div>
-
-
-      </div>
-
-
-      {/* =========================
-          BUSINESS OVERVIEW
-      ========================= */}
-
-      <div className="analytics-section">
-
-        <h2>
-          📊 Business Overview
-        </h2>
-
-
-        <div className="product-list">
-
-
-          <div className="product-row">
-
-            <span>
-              Average Order Value
+            <span className="banner-label">
+              ACTIVE DATASET
             </span>
 
             <strong>
-
-              ₹
-              {metrics.average_order_value
-                ? Number(
-                    metrics.average_order_value
-                  ).toLocaleString("en-IN")
-                : 0}
-
+              {data.file_name || "Current dataset"}
             </strong>
 
           </div>
 
-
-          <div className="product-row">
-
-            <span>
-              Best Selling Product
-            </span>
-
-            <strong>
-
-              🏆{" "}
-              {metrics.best_selling_product ||
-                "N/A"}
-
-            </strong>
-
-          </div>
+        </div>
 
 
-          <div className="product-row">
+        <div className="active-dataset-meta">
 
-            <span>
-              Total Records
-            </span>
+          <span>
+            Dataset #{activeDatasetId}
+          </span>
 
-            <strong>
-              {quality.total_rows || 0}
-            </strong>
-
-          </div>
-
-
-          <div className="product-row">
-
-            <span>
-              Anomaly Rate
-            </span>
-
-            <strong>
-              {anomalies?.anomaly_percentage || 0}%
-            </strong>
-
-          </div>
-
+          <span>
+            {totalRows.toLocaleString("en-IN")} records
+          </span>
 
         </div>
 
       </div>
 
 
-      {/* =========================
-          DATA QUALITY
-      ========================= */}
+      {/* =========================================
+          KPI CARDS
+          ========================================= */}
 
-      <div className="analytics-section">
+      <section className="dashboard-section">
 
-        <h2>
-          🔍 Data Quality
-        </h2>
+        <div className="section-heading">
 
+          <div>
+            <h2>
+              Business performance
+            </h2>
 
-        <div className="product-list">
-
-
-          <div className="product-row">
-
-            <span>
-              Quality Score
-            </span>
-
-            <strong>
-              {quality.quality_score || 0}%
-            </strong>
-
+            <p>
+              Key metrics from the selected dataset
+            </p>
           </div>
-
-
-          <div className="product-row">
-
-            <span>
-              Missing Values
-            </span>
-
-            <strong>
-              {quality.missing_values || 0}
-            </strong>
-
-          </div>
-
-
-          <div className="product-row">
-
-            <span>
-              Duplicate Rows
-            </span>
-
-            <strong>
-              {quality.duplicate_rows || 0}
-            </strong>
-
-          </div>
-
-
-          <div className="product-row">
-
-            <span>
-              Invalid Dates
-            </span>
-
-            <strong>
-              {quality.invalid_dates || 0}
-            </strong>
-
-          </div>
-
 
         </div>
 
-      </div>
+
+        <div className="dashboard-kpi-grid">
 
 
-      {/* =========================
+          {/* Revenue */}
+
+          <div className="dashboard-kpi">
+
+            <div className="kpi-top">
+
+              <span className="kpi-label">
+                TOTAL REVENUE
+              </span>
+
+              <span className="kpi-icon revenue-icon">
+                ₹
+              </span>
+
+            </div>
+
+            <div className="kpi-value">
+              {formatCurrency(totalRevenue)}
+            </div>
+
+            <div className="kpi-description">
+              Revenue generated across all records
+            </div>
+
+          </div>
+
+
+          {/* Units */}
+
+          <div className="dashboard-kpi">
+
+            <div className="kpi-top">
+
+              <span className="kpi-label">
+                UNITS SOLD
+              </span>
+
+              <span className="kpi-icon units-icon">
+                #
+              </span>
+
+            </div>
+
+            <div className="kpi-value">
+              {formatNumber(totalUnits)}
+            </div>
+
+            <div className="kpi-description">
+              Total quantity sold
+            </div>
+
+          </div>
+
+
+          {/* Average Order Value */}
+
+          <div className="dashboard-kpi">
+
+            <div className="kpi-top">
+
+              <span className="kpi-label">
+                AVERAGE ORDER VALUE
+              </span>
+
+              <span className="kpi-icon order-icon">
+                ↗
+              </span>
+
+            </div>
+
+            <div className="kpi-value">
+              {formatCurrency(averageOrderValue)}
+            </div>
+
+            <div className="kpi-description">
+              Average revenue per order
+            </div>
+
+          </div>
+
+
+          {/* Data Quality */}
+
+          <div className="dashboard-kpi">
+
+            <div className="kpi-top">
+
+              <span className="kpi-label">
+                DATA QUALITY
+              </span>
+
+              <span className="kpi-icon quality-icon">
+                ✓
+              </span>
+
+            </div>
+
+            <div className="kpi-value">
+              {qualityScore}%
+            </div>
+
+            <div className="kpi-description">
+              {qualityLabel}
+            </div>
+
+            <div className="quality-progress">
+
+              <div
+                className="quality-progress-fill"
+                style={{
+                  width: `${Math.min(
+                    Math.max(qualityScore, 0),
+                    100
+                  )}%`,
+                }}
+              ></div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      {/* =========================================
+          BUSINESS SUMMARY
+          ========================================= */}
+
+      <section className="dashboard-section">
+
+        <div className="section-heading">
+
+          <div>
+            <h2>
+              Business summary
+            </h2>
+
+            <p>
+              Operational indicators for the current dataset
+            </p>
+          </div>
+
+        </div>
+
+
+        <div className="dashboard-summary-grid">
+
+
+          {/* Business overview */}
+
+          <div className="dashboard-panel">
+
+            <div className="panel-header">
+
+              <div>
+
+                <span className="panel-eyebrow">
+                  PERFORMANCE
+                </span>
+
+                <h3>
+                  Business overview
+                </h3>
+
+              </div>
+
+              <span className="panel-icon">
+                ◈
+              </span>
+
+            </div>
+
+
+            <div className="summary-list">
+
+              <div className="summary-row">
+
+                <span>
+                  Best-selling product
+                </span>
+
+                <strong>
+                  {metrics.best_selling_product || "N/A"}
+                </strong>
+
+              </div>
+
+
+              <div className="summary-row">
+
+                <span>
+                  Average order value
+                </span>
+
+                <strong>
+                  {formatCurrency(
+                    averageOrderValue
+                  )}
+                </strong>
+
+              </div>
+
+
+              <div className="summary-row">
+
+                <span>
+                  Total units sold
+                </span>
+
+                <strong>
+                  {formatNumber(totalUnits)}
+                </strong>
+
+              </div>
+
+
+              <div className="summary-row">
+
+                <span>
+                  Records analysed
+                </span>
+
+                <strong>
+                  {formatNumber(totalRows)}
+                </strong>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          {/* Data health */}
+
+          <div className="dashboard-panel">
+
+            <div className="panel-header">
+
+              <div>
+
+                <span className="panel-eyebrow">
+                  DATA HEALTH
+                </span>
+
+                <h3>
+                  Dataset quality
+                </h3>
+
+              </div>
+
+              <span className="panel-icon">
+                ✓
+              </span>
+
+            </div>
+
+
+            <div className="health-score">
+
+              <div className="health-score-number">
+                {qualityScore}%
+              </div>
+
+              <div>
+
+                <strong>
+                  {qualityLabel}
+                </strong>
+
+                <span>
+                  Overall data quality score
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <div className="health-grid">
+
+              <div>
+                <span>
+                  Missing values
+                </span>
+
+                <strong>
+                  {quality.missing_values || 0}
+                </strong>
+              </div>
+
+
+              <div>
+                <span>
+                  Duplicate rows
+                </span>
+
+                <strong>
+                  {quality.duplicate_rows || 0}
+                </strong>
+              </div>
+
+
+              <div>
+                <span>
+                  Invalid dates
+                </span>
+
+                <strong>
+                  {quality.invalid_dates || 0}
+                </strong>
+              </div>
+
+
+              <div>
+                <span>
+                  Anomalies
+                </span>
+
+                <strong>
+                  {anomalyCount}
+                </strong>
+              </div>
+
+            </div>
+
+          </div>
+
+
+          {/* Anomaly monitoring */}
+
+          <div className="dashboard-panel">
+
+            <div className="panel-header">
+
+              <div>
+
+                <span className="panel-eyebrow">
+                  MONITORING
+                </span>
+
+                <h3>
+                  Anomaly detection
+                </h3>
+
+              </div>
+
+              <span className="panel-icon warning-panel-icon">
+                !
+              </span>
+
+            </div>
+
+
+            <div className="anomaly-summary">
+
+              <div className="anomaly-number">
+                {anomalyCount}
+              </div>
+
+              <div>
+
+                <strong>
+                  {anomalyLabel}
+                </strong>
+
+                <span>
+                  {anomalyPercentage}% of analysed records
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <div className="anomaly-bar">
+
+              <div
+                className="anomaly-bar-fill"
+                style={{
+                  width: `${Math.min(
+                    Math.max(anomalyPercentage, 0),
+                    100
+                  )}%`,
+                }}
+              ></div>
+
+            </div>
+
+
+            <p className="panel-note">
+              Statistical outliers are highlighted for
+              further investigation.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      {/* =========================================
           AI INSIGHTS
-      ========================= */}
+          ========================================= */}
 
-      <div className="analytics-section">
+      <section className="dashboard-section">
 
-        <h2>
-          🤖 AI Business Insights
-        </h2>
+        <div className="section-heading">
+
+          <div>
+
+            <h2>
+              AI business insights
+            </h2>
+
+            <p>
+              Key observations generated from your business data
+            </p>
+
+          </div>
+
+          <span className="ai-badge">
+            AI POWERED
+          </span>
+
+        </div>
 
 
         {Array.isArray(insights) &&
         insights.length > 0 ? (
 
-          insights.map(
-            (insight, index) => (
+          <div className="dashboard-insights">
 
-              <div
-                className="insight-card"
-                key={index}
-              >
+            {insights.slice(0, 4).map(
+              (insight, index) => {
 
-                <div className="insight-number">
-
-                  {index + 1}
-
-                </div>
+                const title =
+                  typeof insight === "string"
+                    ? "Business insight"
+                    : insight.title ||
+                      "Business insight";
 
 
-                <div className="insight-content">
-
-                  <h3>
-
-                    {typeof insight === "string"
-                      ? "AI Insight"
-                      : insight.title ||
-                        "AI Insight"}
-
-                  </h3>
+                const message =
+                  typeof insight === "string"
+                    ? insight
+                    : insight.message ||
+                      "No description available.";
 
 
-                  <p>
+                return (
+                  <div
+                    className="dashboard-insight"
+                    key={index}
+                  >
 
-                    {typeof insight === "string"
-                      ? insight
-                      : insight.message ||
-                        "No description available."}
+                    <div className="insight-index">
+                      {String(index + 1).padStart(2, "0")}
+                    </div>
 
-                  </p>
 
-                </div>
+                    <div className="insight-main">
 
-              </div>
+                      <h3>
+                        {title}
+                      </h3>
 
-            )
-          )
+                      <p>
+                        {message}
+                      </p>
+
+                    </div>
+
+
+                    <span className="insight-arrow">
+                      →
+                    </span>
+
+                  </div>
+                );
+              }
+            )}
+
+          </div>
 
         ) : (
 
-          <div className="empty-state">
+          <div className="dashboard-panel dashboard-no-insights">
 
-            <p>
-              🤖 No AI insights available yet.
-            </p>
+            <div className="dashboard-no-insights-icon">
+              ✦
+            </div>
+
+            <div>
+
+              <h3>
+                No insights available yet
+              </h3>
+
+              <p>
+                AI-generated observations will appear
+                here when insights are available.
+              </p>
+
+            </div>
 
           </div>
 
         )}
 
-      </div>
+      </section>
 
 
     </div>
-
   );
-
 }
 
 

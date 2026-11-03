@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 
 import {
+  ResponsiveContainer,
   LineChart,
   Line,
   BarChart,
   Bar,
+  CartesianGrid,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
-  Legend,
-  ResponsiveContainer
 } from "recharts";
 
 
@@ -19,74 +18,348 @@ const API_URL = "http://127.0.0.1:8000";
 
 function Analytics({ activeDatasetId }) {
 
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
+  const [analytics, setAnalytics] = useState(null);
+
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState("");
 
-  useEffect(() => {
 
-    if (activeDatasetId) {
-      loadAnalytics();
+  /*
+   * Convert monthly revenue into the format
+   * required by Recharts.
+   *
+   * Supports both:
+   *
+   * {
+   *   "2022-01": 10000
+   * }
+   *
+   * and:
+   *
+   * [
+   *   {
+   *     month: "2022-01",
+   *     revenue: 10000
+   *   }
+   * ]
+   */
+
+  const convertMonthlyRevenue = (value) => {
+
+    if (!value) {
+      return [];
     }
 
-  }, [activeDatasetId]);
 
+    if (Array.isArray(value)) {
+
+      return value
+        .map((item) => {
+
+          if (!item) {
+            return null;
+          }
+
+          return {
+            month:
+              item.month ||
+              item.period ||
+              item.date ||
+              "",
+
+            revenue: Number(
+              item.revenue ??
+              item.value ??
+              0
+            ),
+          };
+
+        })
+        .filter(
+          (item) =>
+            item &&
+            item.month
+        );
+
+    }
+
+
+    if (
+      typeof value === "object"
+    ) {
+
+      return Object.entries(
+        value
+      ).map(
+        ([month, revenue]) => ({
+          month,
+          revenue: Number(
+            revenue || 0
+          ),
+        })
+      );
+
+    }
+
+
+    return [];
+  };
+
+
+  /*
+   * Convert product revenue.
+   */
+
+  const convertProductRevenue = (
+    value
+  ) => {
+
+    if (!value) {
+      return [];
+    }
+
+
+    if (Array.isArray(value)) {
+
+      return value
+        .map((item) => {
+
+          if (!item) {
+            return null;
+          }
+
+          return {
+            product:
+              item.product ||
+              item.name ||
+              item.item ||
+              "",
+
+            revenue: Number(
+              item.revenue ??
+              item.value ??
+              0
+            ),
+          };
+
+        })
+        .filter(
+          (item) =>
+            item &&
+            item.product
+        );
+
+    }
+
+
+    if (
+      typeof value === "object"
+    ) {
+
+      return Object.entries(
+        value
+      ).map(
+        ([product, revenue]) => ({
+          product,
+          revenue: Number(
+            revenue || 0
+          ),
+        })
+      );
+
+    }
+
+
+    return [];
+  };
+
+
+  /*
+   * Load analytics.
+   */
 
   const loadAnalytics = async () => {
 
     try {
 
       setLoading(true);
+
       setError("");
 
-      const token = localStorage.getItem("token");
 
-      if (!token) {
-        throw new Error("Please login first.");
+      if (!activeDatasetId) {
+
+        setAnalytics(null);
+
+        setLoading(false);
+
+        return;
+
       }
 
 
-      const response = await fetch(
-        `${API_URL}/analytics/${activeDatasetId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const token =
+        localStorage.getItem(
+          "token"
+        );
+
+
+      if (!token) {
+
+        throw new Error(
+          "Please login again."
+        );
+
+      }
+
+
+      const response =
+        await fetch(
+          `${API_URL}/analytics/${activeDatasetId}`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+
+      const result =
+        await response.json();
+
+
+      console.log(
+        "OpsPilot Analytics:",
+        result
       );
 
 
-      if (response.status === 401) {
-
-        localStorage.removeItem("token");
-        localStorage.removeItem("username");
+      if (!response.ok) {
 
         throw new Error(
-          "Session expired. Please login again."
-        );
-      }
-
-
-      const result = await response.json();
-
-
-      if (!response.ok || result.error) {
-
-        throw new Error(
-          result.error ||
           result.detail ||
-          "Failed to load analytics"
+          result.error ||
+          "Unable to load analytics."
         );
 
       }
 
 
-      setData(result);
+      if (result.error) {
 
-    } catch (error) {
+        throw new Error(
+          result.error
+        );
 
-      setError(error.message);
+      }
+
+
+      /*
+       * The backend normally returns:
+       *
+       * {
+       *   dataset_id,
+       *   file_name,
+       *   business_metrics,
+       *   data_quality,
+       *   ...
+       * }
+       */
+
+      const metrics =
+        result.business_metrics ||
+        result.metrics ||
+        {};
+
+
+      /*
+       * Monthly revenue.
+       */
+
+      const monthlyRevenue =
+        convertMonthlyRevenue(
+          metrics.monthly_revenue
+        );
+
+
+      /*
+       * Product revenue.
+       *
+       * Current backend provides
+       * top_products, so use it as
+       * a fallback.
+       */
+
+      let productRevenue =
+        convertProductRevenue(
+          metrics.revenue_by_product
+        );
+
+
+      if (
+        productRevenue.length === 0
+      ) {
+
+        productRevenue =
+          convertProductRevenue(
+            metrics.top_products
+          );
+
+      }
+
+
+      /*
+       * Sort products by revenue.
+       */
+
+      productRevenue =
+        productRevenue
+          .sort(
+            (a, b) =>
+              b.revenue -
+              a.revenue
+          )
+          .slice(0, 10);
+
+
+      /*
+       * Store normalized frontend data.
+       */
+
+      setAnalytics({
+
+        ...result,
+
+        business_metrics: {
+
+          ...metrics,
+
+          monthly_revenue:
+            monthlyRevenue,
+
+          revenue_by_product:
+            productRevenue,
+
+        },
+
+      });
+
+
+    } catch (err) {
+
+      console.error(
+        "Analytics loading error:",
+        err
+      );
+
+
+      setError(
+        err.message ||
+        "Unable to load analytics."
+      );
+
 
     } finally {
 
@@ -97,45 +370,36 @@ function Analytics({ activeDatasetId }) {
   };
 
 
-  if (!activeDatasetId) {
+  /*
+   * Load whenever dataset changes.
+   */
 
-    return (
+  useEffect(() => {
 
-      <div className="page-container">
+    loadAnalytics();
 
-        <div className="page-header">
-
-          <h1>📈 Analytics</h1>
-
-          <p>
-            Select a dataset to view business analytics.
-          </p>
-
-        </div>
+  }, [activeDatasetId]);
 
 
-        <div className="empty-state">
-
-          📁 Please select a dataset first.
-
-        </div>
-
-      </div>
-
-    );
-
-  }
-
+  /*
+   * Loading screen.
+   */
 
   if (loading) {
 
     return (
 
-      <div className="page-container">
+      <div className="analytics-page">
 
-        <div className="loading">
+        <div className="analytics-loading">
 
-          Loading analytics...
+          <div className="analytics-empty-icon">
+            ◌
+          </div>
+
+          <p>
+            Loading business analytics...
+          </p>
 
         </div>
 
@@ -145,23 +409,34 @@ function Analytics({ activeDatasetId }) {
 
   }
 
+
+  /*
+   * Error screen.
+   */
 
   if (error) {
 
     return (
 
-      <div className="page-container">
+      <div className="analytics-page">
 
-        <div className="page-header">
+        <div className="analytics-error">
 
-          <h1>📈 Analytics</h1>
+          <div className="analytics-error-icon">
+            !
+          </div>
 
-        </div>
+          <div>
 
+            <h3>
+              Analytics unavailable
+            </h3>
 
-        <div className="error">
+            <p>
+              {error}
+            </p>
 
-          ❌ {error}
+          </div>
 
         </div>
 
@@ -172,74 +447,332 @@ function Analytics({ activeDatasetId }) {
   }
 
 
-  if (!data) {
+  /*
+   * No dataset.
+   */
+
+  if (!activeDatasetId) {
+
+    return (
+
+      <div className="analytics-page">
+
+        <div className="analytics-empty">
+
+          <div className="analytics-empty-icon">
+            ◫
+          </div>
+
+          <h2>
+            No dataset selected
+          </h2>
+
+          <p>
+            Select a dataset to view
+            business performance,
+            revenue trends and product
+            analytics.
+          </p>
+
+        </div>
+
+      </div>
+
+    );
+
+  }
+
+
+  if (!analytics) {
     return null;
   }
 
 
-  const metrics = data.business_metrics;
-  const quality = data.data_quality;
+  const metrics =
+    analytics.business_metrics ||
+    {};
 
 
-  const productChartData = Object.entries(
-    metrics.revenue_by_product || {}
-  ).map(([product, revenue]) => ({
-    product,
-    revenue
-  }));
+  const dataQuality =
+    analytics.data_quality ||
+    {};
 
 
-  const monthlyChartData = Object.entries(
-    metrics.monthly_revenue || {}
-  ).map(([month, revenue]) => ({
-    month,
-    revenue
-  }));
+  /*
+   * Dataset information.
+   */
+
+  const fileName =
+    analytics.file_name ||
+    "Selected dataset";
+
+
+  const rows =
+    analytics.rows ||
+    analytics.dataset?.rows ||
+    0;
+
+
+  /*
+   * Business metrics.
+   */
+
+  const totalRevenue =
+    Number(
+      metrics.total_revenue || 0
+    );
+
+
+  const totalUnits =
+    Number(
+      metrics.total_units_sold || 0
+    );
+
+
+  const averageOrderValue =
+    Number(
+      metrics.average_order_value || 0
+    );
+
+
+  const bestProduct =
+    metrics.best_selling_product ||
+    "Not available";
+
+
+  const revenueGrowth =
+    Number(
+      metrics.revenue_growth || 0
+    );
+
+
+  const profitMargin =
+    Number(
+      metrics.profit_margin || 0
+    );
+
+
+  const estimatedProfit =
+    Number(
+      metrics.estimated_profit || 0
+    );
+
+
+  /*
+   * Chart data.
+   */
+
+  const monthlyRevenue =
+    metrics.monthly_revenue || [];
+
+
+  const productRevenue =
+    metrics.revenue_by_product || [];
+
+
+  /*
+   * Quality.
+   */
+
+  const qualityScore =
+    Number(
+      dataQuality.quality_score || 0
+    );
+
+
+  const missingValues =
+    Number(
+      dataQuality.missing_values || 0
+    );
+
+
+  const duplicateRows =
+    Number(
+      dataQuality.duplicate_rows || 0
+    );
+
+
+  const invalidDates =
+    Number(
+      dataQuality.invalid_dates || 0
+    );
+
+
+  /*
+   * Format currency.
+   */
+
+  const formatCurrency = (
+    value
+  ) => {
+
+    return `₹${Number(
+      value || 0
+    ).toLocaleString(
+      "en-IN",
+      {
+        maximumFractionDigits: 2,
+      }
+    )}`;
+
+  };
+
+
+  /*
+   * Format number.
+   */
+
+  const formatNumber = (
+    value
+  ) => {
+
+    return Number(
+      value || 0
+    ).toLocaleString(
+      "en-IN"
+    );
+
+  };
+
+
+  /*
+   * Month label.
+   *
+   * 2022-01
+   * →
+   * Jan 2022
+   */
+
+  const formatMonth = (
+    value
+  ) => {
+
+    if (!value) {
+      return "";
+    }
+
+
+    const parts =
+      String(value).split("-");
+
+
+    if (
+      parts.length === 2
+    ) {
+
+      const year =
+        parts[0];
+
+      const month =
+        Number(parts[1]);
+
+
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+
+
+      if (
+        month >= 1 &&
+        month <= 12
+      ) {
+
+        return `${months[month - 1]} ${year}`;
+
+      }
+
+    }
+
+
+    return String(value);
+
+  };
 
 
   return (
 
-    <div className="page-container">
+    <div className="analytics-page">
 
 
-      {/* Header */}
+      {/* =====================================================
+          HEADER
+          ===================================================== */}
 
-      <div className="page-header">
+      <div className="analytics-header">
 
-        <h1>📈 Business Analytics</h1>
+        <div>
 
-        <p>
-          Interactive analysis of your selected business dataset
-        </p>
+          <span className="eyebrow">
+            BUSINESS INTELLIGENCE
+          </span>
+
+          <h1>
+            Analytics
+          </h1>
+
+          <p>
+            Performance analysis and
+            operational metrics for your
+            selected dataset.
+          </p>
+
+        </div>
+
+
+        <button
+          className="analytics-refresh-button"
+          onClick={loadAnalytics}
+        >
+          ↻ Refresh
+        </button>
 
       </div>
 
 
-      {/* Dataset Information */}
+      {/* =====================================================
+          DATASET BANNER
+          ===================================================== */}
 
-      <div className="analytics-section">
+      <div className="analytics-dataset-banner">
 
-        <h2>📁 Active Dataset</h2>
+        <div className="analytics-dataset-left">
 
-        <div className="product-list">
+          <div className="analytics-dataset-icon">
+            CSV
+          </div>
 
-          <div className="product-row">
+          <div>
 
             <span>
-              File Name
+              ACTIVE DATASET
             </span>
 
             <strong>
-              {data.file_name}
+              {fileName}
             </strong>
 
           </div>
 
+        </div>
 
-          <div className="product-row">
+
+        <div className="analytics-dataset-meta">
+
+          <div>
 
             <span>
-              Dataset ID
+              DATASET
             </span>
 
             <strong>
@@ -249,14 +782,14 @@ function Analytics({ activeDatasetId }) {
           </div>
 
 
-          <div className="product-row">
+          <div>
 
             <span>
-              Total Records
+              RECORDS
             </span>
 
             <strong>
-              {quality.total_rows}
+              {formatNumber(rows)}
             </strong>
 
           </div>
@@ -266,347 +799,671 @@ function Analytics({ activeDatasetId }) {
       </div>
 
 
-      {/* KPI Cards */}
+      {/* =====================================================
+          BUSINESS OVERVIEW
+          ===================================================== */}
 
-      <div className="analytics-results">
+      <section className="analytics-section">
 
+        <div className="analytics-section-heading">
 
-        <div className="metric-card">
+          <div>
 
-          <span>💰</span>
+            <span>
+              PERFORMANCE SNAPSHOT
+            </span>
 
-          <h3>
-            Total Revenue
-          </h3>
+            <h2>
+              Business overview
+            </h2>
 
-          <p>
-            ₹{metrics.total_revenue?.toLocaleString()}
-          </p>
-
-        </div>
-
-
-        <div className="metric-card">
-
-          <span>📦</span>
-
-          <h3>
-            Units Sold
-          </h3>
-
-          <p>
-            {metrics.total_units_sold?.toLocaleString()}
-          </p>
+          </div>
 
         </div>
 
 
-        <div className="metric-card">
+        <div className="analytics-kpi-grid">
 
-          <span>💵</span>
 
-          <h3>
-            Average Order Value
-          </h3>
+          {/* Revenue */}
 
-          <p>
-            ₹{metrics.average_order_value?.toLocaleString()}
-          </p>
+          <div className="analytics-kpi">
+
+            <div className="analytics-kpi-top">
+
+              <span>
+                TOTAL REVENUE
+              </span>
+
+              <div className="analytics-kpi-icon">
+                ₹
+              </div>
+
+            </div>
+
+            <strong>
+              {formatCurrency(
+                totalRevenue
+              )}
+            </strong>
+
+            <p>
+              Revenue generated across
+              all records
+            </p>
+
+          </div>
+
+
+          {/* Units */}
+
+          <div className="analytics-kpi">
+
+            <div className="analytics-kpi-top">
+
+              <span>
+                UNITS SOLD
+              </span>
+
+              <div className="analytics-kpi-icon">
+                #
+              </div>
+
+            </div>
+
+            <strong>
+              {formatNumber(
+                totalUnits
+              )}
+            </strong>
+
+            <p>
+              Total quantity recorded
+              across transactions
+            </p>
+
+          </div>
+
+
+          {/* AOV */}
+
+          <div className="analytics-kpi">
+
+            <div className="analytics-kpi-top">
+
+              <span>
+                AVERAGE ORDER VALUE
+              </span>
+
+              <div className="analytics-kpi-icon">
+                ↗
+              </div>
+
+            </div>
+
+            <strong>
+              {formatCurrency(
+                averageOrderValue
+              )}
+            </strong>
+
+            <p>
+              Average revenue represented
+              by each business record
+            </p>
+
+          </div>
+
+
+          {/* Top product */}
+
+          <div className="analytics-kpi">
+
+            <div className="analytics-kpi-top">
+
+              <span>
+                TOP PRODUCT
+              </span>
+
+              <div className="analytics-kpi-icon">
+                ★
+              </div>
+
+            </div>
+
+            <strong className="analytics-kpi-product">
+              {bestProduct}
+            </strong>
+
+            <p>
+              Highest-performing product
+              by recorded revenue
+            </p>
+
+          </div>
+
+
+        </div>
+
+      </section>
+
+
+      {/* =====================================================
+          MONTHLY REVENUE
+          ===================================================== */}
+
+      <section className="analytics-section">
+
+        <div className="analytics-section-heading">
+
+          <div>
+
+            <span>
+              REVENUE PERFORMANCE
+            </span>
+
+            <h2>
+              Monthly revenue trend
+            </h2>
+
+          </div>
+
+
+          <span className="analytics-chart-badge">
+            {monthlyRevenue.length} periods
+          </span>
 
         </div>
 
 
-        <div className="metric-card">
+        <div className="analytics-chart-card">
 
-          <span>🏆</span>
+          {monthlyRevenue.length === 0 ? (
 
-          <h3>
-            Best Product
-          </h3>
+            <div className="analytics-no-data">
 
-          <p>
-            {metrics.best_selling_product || "N/A"}
-          </p>
+              No monthly revenue data
+              available.
 
-        </div>
+            </div>
 
+          ) : (
 
-      </div>
-
-
-      {/* Monthly Revenue */}
-
-      <div className="analytics-section">
-
-        <h2>
-          📊 Monthly Revenue Trend
-        </h2>
-
-
-        {monthlyChartData.length > 0 ? (
-
-          <div className="chart-container">
-
-            <ResponsiveContainer
-              width="100%"
-              height={350}
+            <div
+              style={{
+                width: "100%",
+                height: "330px",
+              }}
             >
 
-              <LineChart
-                data={monthlyChartData}
-                margin={{
-                  top: 20,
-                  right: 30,
-                  left: 20,
-                  bottom: 10
-                }}
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
               >
 
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                />
+                <LineChart
+                  data={monthlyRevenue}
+                  margin={{
+                    top: 15,
+                    right: 20,
+                    left: 10,
+                    bottom: 15,
+                  }}
+                >
 
-                <XAxis
-                  dataKey="month"
-                />
+                  <CartesianGrid
+                    stroke="#242a32"
+                    strokeDasharray="3 3"
+                    vertical={false}
+                  />
 
-                <YAxis />
 
-                <Tooltip
-                  formatter={(value) =>
-                    `₹${Number(value).toLocaleString()}`
-                  }
-                />
+                  <XAxis
+                    dataKey="month"
+                    tickFormatter={
+                      formatMonth
+                    }
+                    stroke="#606976"
+                    tick={{
+                      fill: "#727b88",
+                      fontSize: 10,
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={25}
+                  />
 
-                <Legend />
 
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  name="Revenue"
-                  strokeWidth={3}
-                  dot={{ r: 5 }}
-                />
+                  <YAxis
+                    stroke="#606976"
+                    tick={{
+                      fill: "#727b88",
+                      fontSize: 10,
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={82}
+                    tickFormatter={(value) =>
+                      formatCurrency(
+                        value
+                      )
+                    }
+                  />
 
-              </LineChart>
 
-            </ResponsiveContainer>
+                  <Tooltip
+                    contentStyle={{
+                      background:
+                        "#151920",
+                      border:
+                        "1px solid #303640",
+                      borderRadius:
+                        "8px",
+                      color:
+                        "#e4e7eb",
+                    }}
+                    labelStyle={{
+                      color:
+                        "#8f98a6",
+                      marginBottom:
+                        "5px",
+                    }}
+                    itemStyle={{
+                      color:
+                        "#9ca7ff",
+                    }}
+                    formatter={(value) => [
+                      formatCurrency(
+                        value
+                      ),
+                      "Revenue",
+                    ]}
+                    labelFormatter={
+                      formatMonth
+                    }
+                  />
+
+
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#7c8cff"
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{
+                      r: 4,
+                      strokeWidth: 2,
+                      stroke: "#7c8cff",
+                      fill: "#111419",
+                    }}
+                    connectNulls
+                  />
+
+                </LineChart>
+
+              </ResponsiveContainer>
+
+            </div>
+
+          )}
+
+        </div>
+
+      </section>
+
+
+      {/* =====================================================
+          PRODUCT REVENUE
+          ===================================================== */}
+
+      <section className="analytics-section">
+
+        <div className="analytics-section-heading">
+
+          <div>
+
+            <span>
+              PRODUCT PERFORMANCE
+            </span>
+
+            <h2>
+              Revenue by product
+            </h2>
 
           </div>
 
-        ) : (
 
-          <p>
-            No monthly revenue data available.
-          </p>
+          <span className="analytics-chart-badge">
+            {productRevenue.length} products
+          </span>
 
-        )}
-
-      </div>
+        </div>
 
 
-      {/* Product Revenue */}
+        <div className="analytics-chart-card">
 
-      <div className="analytics-section">
+          {productRevenue.length === 0 ? (
 
-        <h2>
-          🏆 Revenue by Product
-        </h2>
+            <div className="analytics-no-data">
 
+              No product revenue data
+              available.
 
-        {productChartData.length > 0 ? (
+            </div>
 
-          <div className="chart-container">
+          ) : (
 
-            <ResponsiveContainer
-              width="100%"
-              height={350}
+            <div
+              style={{
+                width: "100%",
+                height:
+                  Math.max(
+                    300,
+                    productRevenue.length * 38
+                  ) + "px",
+              }}
             >
 
-              <BarChart
-                data={productChartData}
-                margin={{
-                  top: 20,
-                  right: 30,
-                  left: 20,
-                  bottom: 10
-                }}
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
               >
 
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                />
+                <BarChart
+                  data={productRevenue}
+                  layout="vertical"
+                  margin={{
+                    top: 10,
+                    right: 25,
+                    left: 20,
+                    bottom: 10,
+                  }}
+                >
 
-                <XAxis
-                  dataKey="product"
-                />
-
-                <YAxis />
-
-                <Tooltip
-                  formatter={(value) =>
-                    `₹${Number(value).toLocaleString()}`
-                  }
-                />
-
-                <Legend />
-
-                <Bar
-                  dataKey="revenue"
-                  name="Revenue"
-                />
-
-              </BarChart>
-
-            </ResponsiveContainer>
-
-          </div>
-
-        ) : (
-
-          <p>
-            No product revenue data available.
-          </p>
-
-        )}
-
-      </div>
+                  <CartesianGrid
+                    stroke="#242a32"
+                    strokeDasharray="3 3"
+                    horizontal={false}
+                  />
 
 
-      {/* Business Summary */}
-
-      <div className="analytics-section">
-
-        <h2>
-          📋 Business Summary
-        </h2>
-
-
-        <div className="product-list">
-
-
-          <div className="product-row">
-
-            <span>
-              💰 Total Revenue
-            </span>
-
-            <strong>
-              ₹{metrics.total_revenue?.toLocaleString()}
-            </strong>
-
-          </div>
+                  <XAxis
+                    type="number"
+                    stroke="#606976"
+                    tick={{
+                      fill: "#727b88",
+                      fontSize: 10,
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) =>
+                      formatCurrency(
+                        value
+                      )
+                    }
+                  />
 
 
-          <div className="product-row">
-
-            <span>
-              📦 Units Sold
-            </span>
-
-            <strong>
-              {metrics.total_units_sold?.toLocaleString()}
-            </strong>
-
-          </div>
-
-
-          <div className="product-row">
-
-            <span>
-              💵 Average Order Value
-            </span>
-
-            <strong>
-              ₹{metrics.average_order_value?.toLocaleString()}
-            </strong>
-
-          </div>
+                  <YAxis
+                    type="category"
+                    dataKey="product"
+                    stroke="#606976"
+                    tick={{
+                      fill: "#a0a8b5",
+                      fontSize: 10,
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={145}
+                  />
 
 
-          <div className="product-row">
+                  <Tooltip
+                    contentStyle={{
+                      background:
+                        "#151920",
+                      border:
+                        "1px solid #303640",
+                      borderRadius:
+                        "8px",
+                      color:
+                        "#e4e7eb",
+                    }}
+                    formatter={(value) => [
+                      formatCurrency(
+                        value
+                      ),
+                      "Revenue",
+                    ]}
+                  />
 
-            <span>
-              🏆 Best Selling Product
-            </span>
 
-            <strong>
-              {metrics.best_selling_product || "N/A"}
-            </strong>
+                  <Bar
+                    dataKey="revenue"
+                    fill="#7c8cff"
+                    radius={[
+                      0,
+                      4,
+                      4,
+                      0,
+                    ]}
+                    barSize={20}
+                  />
 
-          </div>
+                </BarChart>
 
+              </ResponsiveContainer>
+
+            </div>
+
+          )}
 
         </div>
 
-      </div>
+      </section>
 
 
-      {/* Data Quality */}
+      {/* =====================================================
+          DETAILS
+          ===================================================== */}
 
-      <div className="analytics-section">
-
-        <h2>
-          🔍 Data Quality
-        </h2>
+      <div className="analytics-details-grid">
 
 
-        <div className="product-list">
+        {/* Business performance */}
 
+        <div className="analytics-detail-panel">
 
-          <div className="product-row">
+          <div className="analytics-panel-heading">
 
             <span>
-              Quality Score
+              BUSINESS PERFORMANCE
             </span>
 
-            <strong>
-              {quality.quality_score}%
-            </strong>
+            <h2>
+              Key metrics
+            </h2>
 
           </div>
 
 
-          <div className="product-row">
+          <div className="analytics-detail-list">
 
-            <span>
-              Missing Values
-            </span>
+            <div className="analytics-detail-row">
 
-            <strong>
-              {quality.missing_values}
-            </strong>
+              <span>
+                Best-selling product
+              </span>
+
+              <strong>
+                {bestProduct}
+              </strong>
+
+            </div>
+
+
+            <div className="analytics-detail-row">
+
+              <span>
+                Revenue growth
+              </span>
+
+              <strong>
+                {revenueGrowth >= 0
+                  ? "+"
+                  : ""}
+                {revenueGrowth.toFixed(2)}%
+              </strong>
+
+            </div>
+
+
+            <div className="analytics-detail-row">
+
+              <span>
+                Estimated profit
+              </span>
+
+              <strong>
+                {formatCurrency(
+                  estimatedProfit
+                )}
+              </strong>
+
+            </div>
+
+
+            <div className="analytics-detail-row">
+
+              <span>
+                Profit margin
+              </span>
+
+              <strong>
+                {profitMargin.toFixed(2)}%
+              </strong>
+
+            </div>
+
+
+            <div className="analytics-detail-row">
+
+              <span>
+                Records analysed
+              </span>
+
+              <strong>
+                {formatNumber(rows)}
+              </strong>
+
+            </div>
 
           </div>
-
-
-          <div className="product-row">
-
-            <span>
-              Duplicate Rows
-            </span>
-
-            <strong>
-              {quality.duplicate_rows}
-            </strong>
-
-          </div>
-
-
-          <div className="product-row">
-
-            <span>
-              Invalid Dates
-            </span>
-
-            <strong>
-              {quality.invalid_dates}
-            </strong>
-
-          </div>
-
 
         </div>
+
+
+        {/* Data quality */}
+
+        <div className="analytics-detail-panel">
+
+          <div className="analytics-panel-heading">
+
+            <span>
+              DATA HEALTH
+            </span>
+
+            <h2>
+              Dataset quality
+            </h2>
+
+          </div>
+
+
+          <div className="quality-score-row">
+
+            <div>
+
+              <span>
+                QUALITY SCORE
+              </span>
+
+              <strong>
+                {qualityScore.toFixed(2)}%
+              </strong>
+
+            </div>
+
+
+            <div className="quality-score-track">
+
+              <div
+                style={{
+                  width: `${Math.min(
+                    Math.max(
+                      qualityScore,
+                      0
+                    ),
+                    100
+                  )}%`,
+                }}
+              />
+
+            </div>
+
+          </div>
+
+
+          <div className="analytics-detail-list">
+
+            <div className="analytics-detail-row">
+
+              <span>
+                Missing values
+              </span>
+
+              <strong>
+                {formatNumber(
+                  missingValues
+                )}
+              </strong>
+
+            </div>
+
+
+            <div className="analytics-detail-row">
+
+              <span>
+                Duplicate rows
+              </span>
+
+              <strong>
+                {formatNumber(
+                  duplicateRows
+                )}
+              </strong>
+
+            </div>
+
+
+            <div className="analytics-detail-row">
+
+              <span>
+                Invalid dates
+              </span>
+
+              <strong>
+                {formatNumber(
+                  invalidDates
+                )}
+              </strong>
+
+            </div>
+
+          </div>
+
+        </div>
+
 
       </div>
 

@@ -1,8 +1,8 @@
 import { useState } from "react";
+
 import "./App.css";
 
 import Auth from "./components/Auth";
-
 import Dashboard from "./components/Dashboard";
 import Datasets from "./components/Datasets";
 import UploadDataset from "./components/UploadDataset";
@@ -20,11 +20,9 @@ function App() {
     localStorage.getItem("username")
   );
 
-  const [activePage, setActivePage] =
-    useState("dashboard");
+  const [activePage, setActivePage] = useState("dashboard");
 
-  const [activeDatasetId, setActiveDatasetId] =
-    useState(null);
+  const [activeDatasetId, setActiveDatasetId] = useState(null);
 
 
   const handleLogin = (loggedInUsername) => {
@@ -55,16 +53,13 @@ function App() {
 
 
   const renderPage = () => {
-
     switch (activePage) {
-
       case "dashboard":
         return (
           <Dashboard
             activeDatasetId={activeDatasetId}
           />
         );
-
 
       case "datasets":
         return (
@@ -73,14 +68,12 @@ function App() {
           />
         );
 
-
       case "upload":
         return (
           <UploadDataset
             onUploadSuccess={handleUploadSuccess}
           />
         );
-
 
       case "analytics":
         return (
@@ -89,14 +82,12 @@ function App() {
           />
         );
 
-
       case "forecast":
         return (
           <Forecast
             activeDatasetId={activeDatasetId}
           />
         );
-
 
       case "anomalies":
         return (
@@ -105,14 +96,12 @@ function App() {
           />
         );
 
-
       case "insights":
         return (
           <AIInsights
             activeDatasetId={activeDatasetId}
           />
         );
-
 
       case "recommendations":
         return (
@@ -121,7 +110,6 @@ function App() {
           />
         );
 
-
       case "alerts":
         return (
           <Alerts
@@ -129,14 +117,12 @@ function App() {
           />
         );
 
-
       case "chatbot":
         return (
           <AIChatbot
             activeDatasetId={activeDatasetId}
           />
         );
-
 
       default:
         return (
@@ -149,9 +135,9 @@ function App() {
 
 
   /*
-   * Show login/register page
-   * when the user is not logged in.
-   */
+    Show login/register page
+    when the user is not logged in.
+  */
 
   if (!username) {
     return (
@@ -172,13 +158,11 @@ function App() {
         {/* Logo */}
 
         <div className="logo">
-
           <div className="logo-icon">
             ⚡
           </div>
 
           <div>
-
             <h2>
               OpsPilot
             </h2>
@@ -186,9 +170,7 @@ function App() {
             <span>
               AI Business Intelligence
             </span>
-
           </div>
-
         </div>
 
 
@@ -208,7 +190,10 @@ function App() {
               setActivePage("dashboard")
             }
           >
-            📊
+            <span className="nav-icon">
+              📊
+            </span>
+
             <span>
               Dashboard
             </span>
@@ -227,7 +212,10 @@ function App() {
               setActivePage("datasets")
             }
           >
-            📁
+            <span className="nav-icon">
+              📁
+            </span>
+
             <span>
               Datasets
             </span>
@@ -246,7 +234,10 @@ function App() {
               setActivePage("upload")
             }
           >
-            📤
+            <span className="nav-icon">
+              📤
+            </span>
+
             <span>
               Upload Dataset
             </span>
@@ -265,7 +256,10 @@ function App() {
               setActivePage("analytics")
             }
           >
-            📈
+            <span className="nav-icon">
+              📈
+            </span>
+
             <span>
               Analytics
             </span>
@@ -284,7 +278,10 @@ function App() {
               setActivePage("forecast")
             }
           >
-            🔮
+            <span className="nav-icon">
+              🔮
+            </span>
+
             <span>
               Forecast
             </span>
@@ -303,7 +300,10 @@ function App() {
               setActivePage("anomalies")
             }
           >
-            ⚠️
+            <span className="nav-icon">
+              ⚠️
+            </span>
+
             <span>
               Anomalies
             </span>
@@ -322,7 +322,10 @@ function App() {
               setActivePage("insights")
             }
           >
-            💡
+            <span className="nav-icon">
+              💡
+            </span>
+
             <span>
               AI Insights
             </span>
@@ -341,7 +344,10 @@ function App() {
               setActivePage("recommendations")
             }
           >
-            🎯
+            <span className="nav-icon">
+              🎯
+            </span>
+
             <span>
               Recommendations
             </span>
@@ -360,7 +366,10 @@ function App() {
               setActivePage("alerts")
             }
           >
-            🚨
+            <span className="nav-icon">
+              🚨
+            </span>
+
             <span>
               Alerts
             </span>
@@ -379,7 +388,10 @@ function App() {
               setActivePage("chatbot")
             }
           >
-            🤖
+            <span className="nav-icon">
+              🤖
+            </span>
+
             <span>
               AI Assistant
             </span>
@@ -392,14 +404,20 @@ function App() {
 
         <div className="sidebar-footer">
 
-          <p>
-            Logged in as
-          </p>
+          <div className="user-section">
 
-          <strong>
-            {username}
-          </strong>
+            <p>
+              Logged in as
+            </p>
 
+            <strong>
+              {username}
+            </strong>
+
+          </div>
+
+
+          {/* Logout */}
 
           <button
             className="logout-button"
@@ -409,21 +427,21 @@ function App() {
           </button>
 
 
-          <p>
-            Active Dataset
-          </p>
+          {/* Active Dataset */}
 
-          <strong>
-            {activeDatasetId
-              ? `#${activeDatasetId}`
-              : "None"}
-          </strong>
+          <div className="active-dataset">
 
-          <span>
-            {activeDatasetId
-              ? "Dataset Selected"
-              : "Select a Dataset"}
-          </span>
+            <div className="active-dataset-title">
+              Active Dataset
+            </div>
+
+            <div className="active-dataset-name">
+              {activeDatasetId
+                ? `Dataset #${activeDatasetId}`
+                : "No dataset selected"}
+            </div>
+
+          </div>
 
         </div>
 
@@ -433,9 +451,7 @@ function App() {
       {/* Main Content */}
 
       <main className="main-content">
-
         {renderPage()}
-
       </main>
 
     </div>

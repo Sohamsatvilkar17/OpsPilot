@@ -2,44 +2,32 @@ import { useEffect, useState } from "react";
 
 const API_URL = "http://127.0.0.1:8000";
 
-
 function Alerts({ activeDatasetId }) {
-
   const [alerts, setAlerts] = useState([]);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
 
-
   const getIcon = (type) => {
-
     switch (type) {
-
       case "revenue":
-        return "📈";
+        return "↗";
 
       case "anomaly":
-        return "⚠️";
+        return "!";
 
       case "data_quality":
-        return "🔍";
+        return "⌕";
 
       case "product":
-        return "🏆";
+        return "★";
 
       default:
-        return "🔔";
-
+        return "•";
     }
-
   };
 
-
   const getSeverityLabel = (severity) => {
-
     switch (severity) {
-
       case "critical":
         return "Critical";
 
@@ -54,32 +42,32 @@ function Alerts({ activeDatasetId }) {
 
       default:
         return "Alert";
-
     }
-
   };
 
-
-  useEffect(() => {
-
-    if (!activeDatasetId) {
-
-      setLoading(false);
-
-      return;
-
+  const getTypeLabel = (type) => {
+    if (!type) {
+      return "General";
     }
 
+    return type
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (letter) =>
+        letter.toUpperCase()
+      );
+  };
+
+  useEffect(() => {
+    if (!activeDatasetId) {
+      setLoading(false);
+      return;
+    }
 
     loadAlerts();
-
   }, [activeDatasetId]);
 
-
   const loadAlerts = async () => {
-
     try {
-
       setLoading(true);
       setError("");
 
@@ -88,7 +76,6 @@ function Alerts({ activeDatasetId }) {
       if (!token) {
         throw new Error("Please login first.");
       }
-
 
       const response = await fetch(
         `${API_URL}/alerts/${activeDatasetId}`,
@@ -99,66 +86,56 @@ function Alerts({ activeDatasetId }) {
         }
       );
 
-
       if (response.status === 401) {
-
         localStorage.removeItem("token");
         localStorage.removeItem("username");
 
         throw new Error(
           "Session expired. Please login again."
         );
-
       }
-
 
       const data = await response.json();
 
-
       if (!response.ok || data.error) {
-
         throw new Error(
           data.error || "Failed to fetch alerts"
         );
-
       }
 
-
       setAlerts(data.alerts || []);
-
     } catch (error) {
-
       setError(error.message);
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
-
   if (!activeDatasetId) {
-
     return (
-
       <div className="page-container">
 
         <div className="page-header">
 
-          <h1>🚨 Alerts & Notifications</h1>
+          <div>
+            <div className="page-eyebrow">
+              MONITORING
+            </div>
 
-          <p>
-            Monitor important business events and risks
-          </p>
+            <h1>Alerts & Notifications</h1>
+
+            <p>
+              Monitor important business events,
+              risks, and operational signals.
+            </p>
+          </div>
 
         </div>
 
 
         <div className="empty-state">
 
-          <div style={{ fontSize: "50px" }}>
+          <div style={{ fontSize: "42px" }}>
             📁
           </div>
 
@@ -167,79 +144,157 @@ function Alerts({ activeDatasetId }) {
           </h2>
 
           <p>
-            Please select a dataset to view business alerts.
+            Select a dataset to view its business alerts.
           </p>
 
         </div>
 
       </div>
-
     );
-
   }
-
 
   if (loading) {
-
     return (
+      <div className="page-container">
 
-      <div className="loading">
+        <div className="page-header">
 
-        Loading business alerts...
+          <div>
+            <div className="page-eyebrow">
+              MONITORING
+            </div>
+
+            <h1>Alerts & Notifications</h1>
+
+            <p>
+              Checking the latest business signals...
+            </p>
+          </div>
+
+        </div>
+
+        <div className="loading">
+
+          <div style={{ fontSize: "30px", marginBottom: "10px" }}>
+            ◉
+          </div>
+
+          Loading business alerts...
+
+        </div>
 
       </div>
-
     );
-
   }
-
 
   const criticalCount = alerts.filter(
     (alert) => alert.severity === "critical"
   ).length;
 
-
   const warningCount = alerts.filter(
     (alert) => alert.severity === "warning"
   ).length;
-
 
   const healthyCount = alerts.filter(
     (alert) => alert.severity === "success"
   ).length;
 
+  const infoCount = alerts.filter(
+    (alert) => alert.severity === "info"
+  ).length;
 
   return (
-
     <div className="page-container">
 
+      {/* HEADER */}
       <div className="page-header">
 
-        <h1>🚨 Alerts & Notifications</h1>
+        <div>
+          <div className="page-eyebrow">
+            MONITORING
+          </div>
 
-        <p>
-          Monitor important business events, risks, and performance signals
-        </p>
+          <h1>Alerts & Notifications</h1>
+
+          <p>
+            Important business events, risks, and performance
+            signals detected in your selected dataset.
+          </p>
+        </div>
+
+        <button
+          className="secondary-button"
+          onClick={loadAlerts}
+        >
+          ↻ Refresh Alerts
+        </button>
 
       </div>
 
 
+      {/* STATUS */}
+      <div className="alerts-monitor-status">
+
+        <div className="alerts-monitor-main">
+
+          <div className="alerts-monitor-icon">
+            ◉
+          </div>
+
+          <div>
+
+            <div className="recommendation-status-label">
+              OPSPILOT MONITORING
+            </div>
+
+            <h2>
+              Monitoring is active
+            </h2>
+
+            <p>
+              Automated checks are evaluating revenue,
+              anomalies, data quality, and product performance.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="monitor-active-badge">
+          <span>●</span>
+          Monitoring
+        </div>
+
+      </div>
+
+
+      {/* ERROR */}
+      {error && (
+        <div className="error">
+          ❌ {error}
+        </div>
+      )}
+
+
+      {/* SUMMARY */}
       <div className="alerts-summary">
 
         <div className="alert-summary-card total">
 
-          <span>🔔</span>
+          <div className="alert-summary-icon">
+            🔔
+          </div>
 
           <div>
+            <span>Total</span>
 
             <strong>
               {alerts.length}
             </strong>
 
             <p>
-              Total Alerts
+              Alerts detected
             </p>
-
           </div>
 
         </div>
@@ -247,18 +302,20 @@ function Alerts({ activeDatasetId }) {
 
         <div className="alert-summary-card critical">
 
-          <span>🔴</span>
+          <div className="alert-summary-icon">
+            !
+          </div>
 
           <div>
+            <span>Critical</span>
 
             <strong>
               {criticalCount}
             </strong>
 
             <p>
-              Critical
+              Immediate attention
             </p>
-
           </div>
 
         </div>
@@ -266,18 +323,20 @@ function Alerts({ activeDatasetId }) {
 
         <div className="alert-summary-card warning">
 
-          <span>🟠</span>
+          <div className="alert-summary-icon">
+            ⚠
+          </div>
 
           <div>
+            <span>Warnings</span>
 
             <strong>
               {warningCount}
             </strong>
 
             <p>
-              Warnings
+              Requires review
             </p>
-
           </div>
 
         </div>
@@ -285,120 +344,163 @@ function Alerts({ activeDatasetId }) {
 
         <div className="alert-summary-card healthy">
 
-          <span>🟢</span>
+          <div className="alert-summary-icon">
+            ✓
+          </div>
 
           <div>
+            <span>Healthy</span>
 
             <strong>
               {healthyCount}
             </strong>
 
             <p>
-              Healthy
+              Positive signals
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      {/* ALERT LIST */}
+      <section className="alerts-section">
+
+        <div className="section-heading">
+
+          <div>
+
+            <div className="page-eyebrow">
+              DETECTED SIGNALS
+            </div>
+
+            <h2>
+              Business Alerts
+            </h2>
+
+          </div>
+
+          <span className="section-count">
+            {alerts.length} alerts
+          </span>
+
+        </div>
+
+
+        {alerts.length === 0 ? (
+
+          <div className="empty-state">
+
+            <div style={{ fontSize: "42px" }}>
+              ✓
+            </div>
+
+            <h2>
+              No Active Alerts
+            </h2>
+
+            <p>
+              No significant business alerts were detected
+              for the selected dataset.
             </p>
 
           </div>
 
-        </div>
+        ) : (
 
-      </div>
+          <div className="alerts-container">
 
+            {alerts.map((alert, index) => (
 
-      {error && (
+              <div
+                className={`alert-card ${alert.severity}`}
+                key={index}
+              >
 
-        <div className="error">
+                <div className="alert-icon">
 
-          ❌ {error}
-
-        </div>
-
-      )}
-
-
-      <div className="alerts-container">
-
-        {alerts.map((alert, index) => (
-
-          <div
-            className={`alert-card ${alert.severity}`}
-            key={index}
-          >
-
-            <div className="alert-icon">
-
-              {getIcon(alert.type)}
-
-            </div>
-
-
-            <div className="alert-content">
-
-              <div className="alert-header">
-
-                <div>
-
-                  <h3>
-                    {alert.title}
-                  </h3>
-
-                  <span className="alert-type">
-
-                    {alert.type.replace("_", " ")}
-
-                  </span>
+                  {getIcon(alert.type)}
 
                 </div>
 
 
-                <span className="alert-severity">
+                <div className="alert-content">
 
-                  {getSeverityLabel(
-                    alert.severity
+                  <div className="alert-header">
+
+                    <div>
+
+                      <div className="alert-type">
+                        {getTypeLabel(alert.type)}
+                      </div>
+
+                      <h3>
+                        {alert.title}
+                      </h3>
+
+                    </div>
+
+
+                    <span className="alert-severity">
+                      {getSeverityLabel(
+                        alert.severity
+                      )}
+                    </span>
+
+                  </div>
+
+
+                  <p>
+                    {alert.message}
+                  </p>
+
+
+                  {alert.severity === "critical" && (
+
+                    <div className="alert-action">
+
+                      <span>
+                        ⚡
+                      </span>
+
+                      <div>
+
+                        <strong>
+                          Action Required
+                        </strong>
+
+                        <p>
+                          Review this issue before
+                          making important business decisions.
+                        </p>
+
+                      </div>
+
+                    </div>
+
                   )}
 
-                </span>
+                </div>
 
               </div>
 
-
-              <p>
-                {alert.message}
-              </p>
-
-
-              {alert.severity === "critical" && (
-
-                <div className="alert-action">
-
-                  <span>⚡</span>
-
-                  <strong>
-                    Action Required
-                  </strong>
-
-                  <span>
-                    Review this issue before making important decisions.
-                  </span>
-
-                </div>
-
-              )}
-
-            </div>
+            ))}
 
           </div>
 
-        ))}
+        )}
 
-      </div>
+      </section>
 
 
+      {/* INFO */}
       <div className="alerts-info">
 
         <div className="alerts-info-icon">
-          🤖
+          ✦
         </div>
-
 
         <div>
 
@@ -407,20 +509,29 @@ function Alerts({ activeDatasetId }) {
           </h3>
 
           <p>
-            OpsPilot continuously analyzes revenue trends,
-            machine-learning anomalies, data quality, and
-            product performance to identify important business events.
+            OpsPilot analyzes revenue trends, machine-learning
+            anomalies, data quality, and product performance
+            to surface important business events automatically.
           </p>
+
+        </div>
+
+        <div className="alerts-info-count">
+
+          <strong>
+            {infoCount}
+          </strong>
+
+          <span>
+            info signals
+          </span>
 
         </div>
 
       </div>
 
     </div>
-
   );
-
 }
-
 
 export default Alerts;

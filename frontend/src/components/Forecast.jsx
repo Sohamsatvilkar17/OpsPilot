@@ -11,34 +11,23 @@ import {
   ResponsiveContainer
 } from "recharts";
 
-
 const API_URL = "http://127.0.0.1:8000";
 
-
 function Forecast({ activeDatasetId }) {
-
   const [data, setData] = useState(null);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
 
-
   useEffect(() => {
-
     if (activeDatasetId) {
       loadForecast();
     } else {
       setLoading(false);
     }
-
   }, [activeDatasetId]);
 
-
   const loadForecast = async () => {
-
     try {
-
       setLoading(true);
       setError("");
 
@@ -48,19 +37,16 @@ function Forecast({ activeDatasetId }) {
         throw new Error("Please login first.");
       }
 
-
       const response = await fetch(
         `${API_URL}/forecast/${activeDatasetId}`,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
-          },
+            Authorization: `Bearer ${token}`
+          }
         }
       );
 
-
       if (response.status === 401) {
-
         localStorage.removeItem("token");
         localStorage.removeItem("username");
 
@@ -69,300 +55,265 @@ function Forecast({ activeDatasetId }) {
         );
       }
 
-
       const result = await response.json();
 
-
       if (!response.ok || result.error) {
-
         throw new Error(
           result.error || "Failed to load forecast"
         );
-
       }
 
-
       setData(result);
-
     } catch (error) {
-
       setError(error.message);
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
-
   if (!activeDatasetId) {
-
     return (
+      <div className="forecast-page">
+        <div className="forecast-empty">
+          <div className="forecast-empty-icon">↗</div>
 
-      <div className="page-container">
-
-        <div className="page-header">
-
-          <h1>🔮 Revenue Forecast</h1>
+          <h2>No dataset selected</h2>
 
           <p>
-            Predict future business revenue using machine learning.
+            Select a dataset from the Datasets page to generate
+            a revenue forecast.
           </p>
-
         </div>
-
-
-        <div className="empty-state">
-
-          📁 Please select a dataset first.
-
-        </div>
-
       </div>
-
     );
-
   }
-
 
   if (loading) {
-
     return (
+      <div className="forecast-page">
+        <div className="forecast-loading">
+          <div className="forecast-spinner"></div>
 
-      <div className="page-container">
+          <h2>Generating forecast</h2>
 
-        <div className="loading">
-
-          🤖 Generating revenue forecast...
-
+          <p>
+            OpsPilot is analyzing historical revenue data.
+          </p>
         </div>
-
       </div>
-
     );
-
   }
-
 
   if (error) {
-
     return (
+      <div className="forecast-page">
+        <div className="forecast-header">
+          <div>
+            <span className="forecast-eyebrow">
+              PREDICTIVE ANALYTICS
+            </span>
 
-      <div className="page-container">
+            <h1>Revenue Forecast</h1>
 
-        <div className="page-header">
-
-          <h1>🔮 Revenue Forecast</h1>
-
+            <p>
+              Project future revenue using historical business
+              performance.
+            </p>
+          </div>
         </div>
 
+        <div className="forecast-error">
+          <div className="forecast-error-icon">!</div>
 
-        <div className="error">
+          <div>
+            <h3>Unable to generate forecast</h3>
 
-          ❌ {error}
+            <p>{error}</p>
 
+            <button
+              onClick={loadForecast}
+              className="forecast-retry-button"
+            >
+              Try again
+            </button>
+          </div>
         </div>
-
       </div>
-
     );
-
   }
-
 
   if (!data) {
     return null;
   }
 
-
   const historical =
     data.forecast?.historical || [];
-
 
   const future =
     data.forecast?.forecast || [];
 
-
   const chartData = [
-
     ...historical.map((item) => ({
-
       month: item.month,
-
       historical: item.revenue,
-
       forecast: null
-
     })),
 
     ...future.map((item) => ({
-
       month: item.month,
-
       historical: null,
-
       forecast: item.predicted_revenue
-
     }))
-
   ];
-
 
   const lastHistorical =
     historical.length > 0
       ? historical[historical.length - 1].revenue
       : 0;
 
-
   const firstPrediction =
     future.length > 0
       ? future[0].predicted_revenue
       : 0;
 
-
   const forecastChange =
     lastHistorical > 0
-
       ? (
-
           ((firstPrediction - lastHistorical) /
             lastHistorical) *
-
           100
-
         ).toFixed(2)
-
       : 0;
 
+  const modelName =
+    data.forecast?.model || "Linear Regression";
+
+  const totalForecast =
+    future.reduce(
+      (total, item) =>
+        total + Number(item.predicted_revenue || 0),
+      0
+    );
 
   return (
+    <div className="forecast-page">
 
-    <div className="page-container">
+      {/* Header */}
 
+      <div className="forecast-header">
+        <div>
+          <span className="forecast-eyebrow">
+            PREDICTIVE ANALYTICS
+          </span>
 
-      <div className="page-header">
+          <h1>Revenue Forecast</h1>
 
-        <h1>🔮 Revenue Forecast</h1>
+          <p>
+            Use historical business performance to estimate
+            upcoming revenue trends.
+          </p>
+        </div>
 
-        <p>
-          Predictive business analytics using machine learning
-        </p>
-
+        <div className="forecast-status">
+          <span className="forecast-status-dot"></span>
+          Forecast ready
+        </div>
       </div>
 
 
-      {/* Dataset Information */}
+      {/* Dataset Banner */}
 
-      <div className="analytics-section">
+      <div className="forecast-dataset-banner">
+        <div className="forecast-dataset-main">
+          <div className="forecast-file-icon">
+            CSV
+          </div>
 
-        <h2>📁 Forecast Information</h2>
-
-
-        <div className="product-list">
-
-          <div className="product-row">
-
-            <span>Dataset</span>
+          <div>
+            <span>ACTIVE DATASET</span>
 
             <strong>
               {data.file_name}
             </strong>
-
           </div>
-
-
-          <div className="product-row">
-
-            <span>Dataset ID</span>
-
-            <strong>
-              #{activeDatasetId}
-            </strong>
-
-          </div>
-
-
-          <div className="product-row">
-
-            <span>Forecast Model</span>
-
-            <strong>
-              {data.forecast?.model}
-            </strong>
-
-          </div>
-
-
-          <div className="product-row">
-
-            <span>Forecast Period</span>
-
-            <strong>
-              Next 3 Months
-            </strong>
-
-          </div>
-
         </div>
 
+        <div className="forecast-dataset-id">
+          Dataset #{activeDatasetId}
+        </div>
       </div>
 
 
-      {/* Forecast KPI Cards */}
+      {/* KPI Cards */}
 
-      <div className="analytics-results">
+      <div className="forecast-kpi-grid">
 
-        <div className="metric-card">
+        <div className="forecast-kpi-card">
+          <div className="forecast-kpi-top">
+            <span>Latest revenue</span>
+            <div className="forecast-kpi-icon">₹</div>
+          </div>
 
-          <span>📊</span>
-
-          <h3>Last Revenue</h3>
-
-          <p>
+          <strong>
             ₹{Number(lastHistorical).toLocaleString()}
-          </p>
+          </strong>
 
+          <small>
+            Most recent historical period
+          </small>
         </div>
 
 
-        <div className="metric-card">
+        <div className="forecast-kpi-card forecast-kpi-highlight">
+          <div className="forecast-kpi-top">
+            <span>Next month</span>
+            <div className="forecast-kpi-icon">↗</div>
+          </div>
 
-          <span>🔮</span>
-
-          <h3>Next Month Forecast</h3>
-
-          <p>
+          <strong>
             ₹{Number(firstPrediction).toLocaleString()}
-          </p>
+          </strong>
 
+          <small>
+            Predicted revenue
+          </small>
         </div>
 
 
-        <div className="metric-card">
+        <div className="forecast-kpi-card">
+          <div className="forecast-kpi-top">
+            <span>Expected change</span>
+            <div className="forecast-kpi-icon">%</div>
+          </div>
 
-          <span>📈</span>
-
-          <h3>Expected Change</h3>
-
-          <p>
+          <strong className={
+            Number(forecastChange) >= 0
+              ? "forecast-positive"
+              : "forecast-negative"
+          }>
+            {Number(forecastChange) >= 0 ? "+" : ""}
             {forecastChange}%
-          </p>
+          </strong>
 
+          <small>
+            Compared with latest revenue
+          </small>
         </div>
 
 
-        <div className="metric-card">
+        <div className="forecast-kpi-card">
+          <div className="forecast-kpi-top">
+            <span>Forecast horizon</span>
+            <div className="forecast-kpi-icon">3M</div>
+          </div>
 
-          <span>🤖</span>
+          <strong>
+            {future.length} months
+          </strong>
 
-          <h3>Model</h3>
-
-          <p>
-            Linear Regression
-          </p>
-
+          <small>
+            Future revenue estimates
+          </small>
         </div>
 
       </div>
@@ -370,47 +321,80 @@ function Forecast({ activeDatasetId }) {
 
       {/* Forecast Chart */}
 
-      <div className="analytics-section">
+      <div className="forecast-chart-card">
 
-        <h2>📈 Revenue Forecast Trend</h2>
+        <div className="forecast-card-header">
+          <div>
+            <span className="forecast-section-label">
+              REVENUE OUTLOOK
+            </span>
 
-        <p>
-          Historical revenue is shown alongside the
-          predicted revenue for the next three months.
-        </p>
+            <h2>Historical vs predicted revenue</h2>
+
+            <p>
+              Historical performance and model-generated
+              revenue estimates.
+            </p>
+          </div>
+
+          <div className="forecast-model-badge">
+            <span>MODEL</span>
+            {modelName}
+          </div>
+        </div>
 
 
-        <div className="chart-container">
+        <div className="forecast-chart-wrapper">
 
           <ResponsiveContainer
             width="100%"
-            height={400}
+            height={390}
           >
-
             <LineChart
               data={chartData}
               margin={{
                 top: 20,
-                right: 30,
-                left: 20,
+                right: 20,
+                left: 10,
                 bottom: 10
               }}
             >
 
               <CartesianGrid
                 strokeDasharray="3 3"
+                vertical={false}
+                stroke="rgba(148, 163, 184, 0.12)"
               />
-
 
               <XAxis
                 dataKey="month"
+                tick={{
+                  fill: "#94a3b8",
+                  fontSize: 12
+                }}
+                axisLine={false}
+                tickLine={false}
               />
 
-
-              <YAxis />
-
+              <YAxis
+                tick={{
+                  fill: "#94a3b8",
+                  fontSize: 12
+                }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(value) =>
+                  `₹${(value / 1000).toFixed(0)}K`
+                }
+              />
 
               <Tooltip
+                contentStyle={{
+                  background: "#171b23",
+                  border: "1px solid #2a3140",
+                  borderRadius: "10px",
+                  color: "#ffffff"
+                }}
                 formatter={(value) =>
                   value !== null
                     ? `₹${Number(
@@ -420,32 +404,36 @@ function Forecast({ activeDatasetId }) {
                 }
               />
 
-
               <Legend />
-
 
               <Line
                 type="monotone"
                 dataKey="historical"
                 name="Historical Revenue"
+                stroke="#8b5cf6"
                 strokeWidth={3}
-                dot={{ r: 5 }}
+                dot={{
+                  r: 4,
+                  strokeWidth: 2
+                }}
                 connectNulls={false}
               />
-
 
               <Line
                 type="monotone"
                 dataKey="forecast"
                 name="Predicted Revenue"
+                stroke="#22c55e"
                 strokeWidth={3}
-                strokeDasharray="6 6"
-                dot={{ r: 5 }}
+                strokeDasharray="7 6"
+                dot={{
+                  r: 4,
+                  strokeWidth: 2
+                }}
                 connectNulls={false}
               />
 
             </LineChart>
-
           </ResponsiveContainer>
 
         </div>
@@ -453,119 +441,121 @@ function Forecast({ activeDatasetId }) {
       </div>
 
 
-      {/* Forecast Table */}
+      {/* Forecast Details */}
 
-      <div className="analytics-section">
+      <div className="forecast-details-grid">
 
-        <h2>🔮 Future Revenue Predictions</h2>
+        {/* Future Predictions */}
 
+        <div className="forecast-table-card">
 
-        <div className="table-container">
+          <div className="forecast-card-header">
+            <div>
+              <span className="forecast-section-label">
+                UPCOMING PERIODS
+              </span>
 
-          <table className="anomaly-table">
+              <h2>Future revenue predictions</h2>
+            </div>
 
-            <thead>
-
-              <tr>
-
-                <th>Month</th>
-
-                <th>Predicted Revenue</th>
-
-              </tr>
-
-            </thead>
-
-
-            <tbody>
-
-              {future.map(
-                (item, index) => (
-
-                  <tr key={index}>
-
-                    <td>
-
-                      <strong>
-                        {item.month}
-                      </strong>
-
-                    </td>
+            <span className="forecast-count-badge">
+              {future.length} periods
+            </span>
+          </div>
 
 
-                    <td>
+          <div className="forecast-table-wrapper">
 
-                      ₹
-                      {Number(
-                        item.predicted_revenue
-                      ).toLocaleString()}
+            <table className="forecast-table">
 
-                    </td>
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Predicted revenue</th>
+                </tr>
+              </thead>
 
-                  </tr>
+              <tbody>
 
-                )
-              )}
+                {future.map(
+                  (item, index) => (
+                    <tr key={index}>
 
-            </tbody>
+                      <td>
+                        <strong>
+                          {item.month}
+                        </strong>
+                      </td>
 
-          </table>
+                      <td>
+                        ₹
+                        {Number(
+                          item.predicted_revenue
+                        ).toLocaleString()}
+                      </td>
+
+                    </tr>
+                  )
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
 
         </div>
 
-      </div>
 
+        {/* Forecast Summary */}
 
-      {/* Explanation */}
+        <div className="forecast-summary-card">
 
-      <div className="analytics-section">
+          <span className="forecast-section-label">
+            MODEL SUMMARY
+          </span>
 
-        <h2>🧠 About This Forecast</h2>
+          <h2>Forecast configuration</h2>
 
+          <div className="forecast-summary-list">
 
-        <div className="product-list">
+            <div>
+              <span>Algorithm</span>
+              <strong>{modelName}</strong>
+            </div>
 
-          <div className="product-row">
+            <div>
+              <span>Historical periods</span>
+              <strong>
+                {historical.length}
+              </strong>
+            </div>
 
-            <span>Algorithm</span>
+            <div>
+              <span>Future periods</span>
+              <strong>
+                {future.length}
+              </strong>
+            </div>
 
-            <strong>
-              Linear Regression
-            </strong>
-
-          </div>
-
-
-          <div className="product-row">
-
-            <span>Historical Data</span>
-
-            <strong>
-              {historical.length} Months
-            </strong>
-
-          </div>
-
-
-          <div className="product-row">
-
-            <span>Future Predictions</span>
-
-            <strong>
-              {future.length} Months
-            </strong>
+            <div>
+              <span>Total forecast</span>
+              <strong>
+                ₹{totalForecast.toLocaleString()}
+              </strong>
+            </div>
 
           </div>
 
+          <div className="forecast-note">
+            <strong>Planning note</strong>
 
-          <div className="product-row">
-
-            <span>Purpose</span>
-
-            <strong>
-              Revenue Planning
-            </strong>
-
+            <p>
+              Forecast values are estimates generated from
+              historical revenue patterns. They can support
+              planning and should be reviewed alongside
+              current business conditions.
+            </p>
           </div>
 
         </div>
@@ -573,10 +563,7 @@ function Forecast({ activeDatasetId }) {
       </div>
 
     </div>
-
   );
-
 }
-
 
 export default Forecast;

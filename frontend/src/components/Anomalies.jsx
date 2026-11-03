@@ -1,551 +1,465 @@
 import { useEffect, useState } from "react";
 
-
 const API_URL = "http://127.0.0.1:8000";
 
-
 function Anomalies({ activeDatasetId }) {
-
   const [data, setData] = useState(null);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
 
-
   useEffect(() => {
-
     if (!activeDatasetId) {
-
       setLoading(false);
-
       return;
     }
 
     loadAnomalies();
-
   }, [activeDatasetId]);
 
-
   const loadAnomalies = async () => {
-
     try {
-
       setLoading(true);
-
       setError("");
-
 
       const token = localStorage.getItem("token");
 
-
       if (!token) {
-
-        throw new Error(
-          "Please login first."
-        );
-
+        throw new Error("Please login first.");
       }
 
-
-      const url =
-        `${API_URL}/analytics/${activeDatasetId}/anomalies`;
-
-
-      console.log(
-        "Loading anomalies from:",
-        url
-      );
-
-
       const response = await fetch(
-        url,
+        `${API_URL}/analytics/${activeDatasetId}/anomalies`,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
-          },
+            Authorization: `Bearer ${token}`
+          }
         }
       );
 
-
       if (response.status === 401) {
-
         localStorage.removeItem("token");
         localStorage.removeItem("username");
 
         throw new Error(
           "Session expired. Please login again."
         );
-
       }
-
 
       const result = await response.json();
 
-
-      console.log(
-        "Anomaly API response:",
-        result
-      );
-
-
       if (!response.ok) {
-
         throw new Error(
           result.error ||
-          result.detail ||
-          `Server returned status ${response.status}`
+            result.detail ||
+            `Server returned status ${response.status}`
         );
-
       }
-
 
       if (result.error) {
-
-        throw new Error(
-          result.error
-        );
-
+        throw new Error(result.error);
       }
 
-
       if (!result.anomaly_detection) {
-
         throw new Error(
           "Anomaly detection data was not returned by the server."
         );
-
       }
 
-
-      setData(
-        result.anomaly_detection
-      );
-
-
+      setData(result.anomaly_detection);
     } catch (error) {
-
-      console.error(
-        "Anomaly detection error:",
-        error
-      );
-
-      setError(
-        error.message
-      );
-
+      console.error("Anomaly detection error:", error);
+      setError(error.message);
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
-
   if (!activeDatasetId) {
-
     return (
+      <div className="anomalies-page">
+        <div className="anomalies-empty">
+          <div className="anomalies-empty-icon">
+            !
+          </div>
 
-      <div className="page-container">
-
-        <div className="page-header">
-
-          <h1>
-            ⚠️ Anomaly Detection
-          </h1>
+          <h2>No dataset selected</h2>
 
           <p>
-            Detect unusual transactions using
-            machine learning.
+            Select a dataset to run machine-learning anomaly
+            detection.
           </p>
-
         </div>
-
-
-        <div className="empty-state">
-
-          📁 Please select a dataset first.
-
-        </div>
-
       </div>
-
     );
-
   }
-
 
   if (loading) {
-
     return (
+      <div className="anomalies-page">
+        <div className="anomalies-loading">
+          <div className="anomalies-spinner"></div>
 
-      <div className="page-container">
-
-        <div className="page-header">
-
-          <h1>
-            ⚠️ Anomaly Detection
-          </h1>
+          <h2>Analyzing transactions</h2>
 
           <p>
-            Machine-learning powered detection
-            of unusual business transactions.
+            OpsPilot is running Isolation Forest anomaly
+            detection on the selected dataset.
           </p>
-
         </div>
-
-
-        <div className="loading">
-
-          🤖 Running ML anomaly detection...
-
-        </div>
-
       </div>
-
     );
-
   }
-
 
   if (error) {
-
     return (
+      <div className="anomalies-page">
+        <div className="anomalies-header">
+          <div>
+            <span className="anomalies-eyebrow">
+              MACHINE LEARNING
+            </span>
 
-      <div className="page-container">
+            <h1>Anomaly Detection</h1>
 
-        <div className="page-header">
-
-          <h1>
-            ⚠️ Anomaly Detection
-          </h1>
-
-          <p>
-            Machine-learning powered detection
-            of unusual business transactions.
-          </p>
-
+            <p>
+              Identify unusual transactions that may require
+              further review.
+            </p>
+          </div>
         </div>
 
+        <div className="anomalies-error">
+          <div className="anomalies-error-icon">
+            !
+          </div>
 
-        <div className="error">
+          <div>
+            <h3>Unable to analyze dataset</h3>
 
-          ❌ {error}
+            <p>{error}</p>
 
+            <button
+              onClick={loadAnomalies}
+              className="anomalies-retry-button"
+            >
+              Try again
+            </button>
+          </div>
         </div>
-
-
-        <div className="analytics-section">
-
-          <h2>
-            🔧 Troubleshooting
-          </h2>
-
-          <p>
-            The backend anomaly API is available,
-            but the frontend could not load the result.
-          </p>
-
-
-          <button
-            onClick={loadAnomalies}
-            className="retry-button"
-          >
-            🔄 Try Again
-          </button>
-
-        </div>
-
       </div>
-
     );
-
   }
 
-
-  const anomalies =
-    data?.anomalies || [];
-
+  const anomalies = data?.anomalies || [];
 
   const anomalyCount =
     data?.anomaly_records || 0;
 
-
   const anomalyPercentage =
     data?.anomaly_percentage || 0;
 
+  const totalRecords =
+    data?.total_records ||
+    data?.records ||
+    0;
 
   return (
-
-    <div className="page-container">
-
+    <div className="anomalies-page">
 
       {/* Header */}
 
-      <div className="page-header">
+      <div className="anomalies-header">
 
-        <h1>
-          ⚠️ Anomaly Detection
-        </h1>
+        <div>
+          <span className="anomalies-eyebrow">
+            MACHINE LEARNING
+          </span>
 
-        <p>
-          Machine-learning powered detection
-          of unusual business transactions.
-        </p>
+          <h1>Anomaly Detection</h1>
+
+          <p>
+            Identify unusual business transactions using
+            machine-learning based analysis.
+          </p>
+        </div>
+
+        <div className="anomalies-model-badge">
+          <span className="anomalies-model-dot"></span>
+          Isolation Forest
+        </div>
 
       </div>
 
 
-      {/* Summary */}
+      {/* Dataset Banner */}
 
-      <div className="analytics-section">
+      <div className="anomalies-dataset-banner">
 
-        <h2>
-          🤖 ML Detection Summary
-        </h2>
+        <div>
+          <span>ACTIVE DATASET</span>
+
+          <strong>
+            Dataset #{activeDatasetId}
+          </strong>
+        </div>
+
+        <div className="anomalies-dataset-status">
+          Analysis complete
+        </div>
+
+      </div>
 
 
-        <div className="analytics-results">
+      {/* KPI Cards */}
 
+      <div className="anomalies-kpi-grid">
 
-          <div className="metric-card">
+        <div className="anomalies-kpi-card">
 
-            <span>
-              ⚠️
-            </span>
+          <div className="anomalies-kpi-top">
+            <span>Anomalies detected</span>
 
-            <h3>
-              Anomalies Detected
-            </h3>
-
-            <p>
-              {anomalyCount}
-            </p>
-
+            <div className="anomalies-kpi-icon">
+              !
+            </div>
           </div>
 
+          <strong>
+            {anomalyCount}
+          </strong>
 
-          <div className="metric-card">
+          <small>
+            Unusual records identified
+          </small>
 
-            <span>
-              📊
-            </span>
+        </div>
 
-            <h3>
-              Anomaly Rate
-            </h3>
 
-            <p>
-              {anomalyPercentage}%
-            </p>
+        <div className="anomalies-kpi-card">
 
+          <div className="anomalies-kpi-top">
+            <span>Anomaly rate</span>
+
+            <div className="anomalies-kpi-icon">
+              %
+            </div>
           </div>
 
+          <strong>
+            {anomalyPercentage}%
+          </strong>
 
-          <div className="metric-card">
+          <small>
+            Share of analyzed records
+          </small>
 
-            <span>
-              🧠
-            </span>
+        </div>
 
-            <h3>
-              ML Model
-            </h3>
 
-            <p>
-              Isolation Forest
-            </p>
+        <div className="anomalies-kpi-card">
 
+          <div className="anomalies-kpi-top">
+            <span>Detection model</span>
+
+            <div className="anomalies-kpi-icon">
+              ML
+            </div>
           </div>
 
+          <strong className="anomalies-kpi-text">
+            Isolation Forest
+          </strong>
 
-          <div className="metric-card">
+          <small>
+            Unsupervised anomaly detection
+          </small>
 
-            <span>
-              🔎
-            </span>
+        </div>
 
-            <h3>
-              Dataset
-            </h3>
 
-            <p>
-              #{activeDatasetId}
-            </p>
+        <div className="anomalies-kpi-card">
 
+          <div className="anomalies-kpi-top">
+            <span>Dataset</span>
+
+            <div className="anomalies-kpi-icon">
+              ID
+            </div>
           </div>
 
+          <strong>
+            #{activeDatasetId}
+          </strong>
+
+          <small>
+            {totalRecords
+              ? `${totalRecords} records analyzed`
+              : "Selected business dataset"}
+          </small>
 
         </div>
 
       </div>
 
 
-      {/* Status */}
+      {/* Detection Status */}
 
-      <div className="analytics-section">
+      {anomalyCount > 0 ? (
+        <div className="anomalies-status-card warning">
 
-        {anomalyCount > 0 ? (
+          <div className="anomalies-status-icon">
+            !
+          </div>
 
-          <div className="anomaly-warning">
+          <div>
+            <span className="anomalies-status-label">
+              REVIEW RECOMMENDED
+            </span>
 
             <h2>
-              ⚠️ Unusual Transactions Found
+              Unusual transactions detected
             </h2>
 
             <p>
-              The machine learning model identified{" "}
-
-              <strong>
-                {anomalyCount}
-              </strong>{" "}
-
-              unusual transaction(s).
+              The machine-learning model identified{" "}
+              <strong>{anomalyCount}</strong>{" "}
+              unusual transaction
+              {anomalyCount === 1 ? "" : "s"}.
+              Review these records to determine whether
+              they represent data issues, unusual customer
+              activity, or genuine business events.
             </p>
-
-            <p>
-              These transactions should be reviewed
-              to determine whether they represent
-              data errors, unusual customer behavior,
-              or genuine business events.
-            </p>
-
           </div>
 
-        ) : (
+        </div>
+      ) : (
+        <div className="anomalies-status-card success">
 
-          <div className="anomaly-success">
+          <div className="anomalies-status-icon">
+            ✓
+          </div>
+
+          <div>
+            <span className="anomalies-status-label">
+              ANALYSIS COMPLETE
+            </span>
 
             <h2>
-              ✅ No Significant Anomalies
+              No significant anomalies detected
             </h2>
 
             <p>
-              The machine learning model did not
-              detect unusual transactions in this
-              dataset.
+              The machine-learning model did not identify
+              unusual transactions in the selected dataset.
             </p>
-
           </div>
 
-        )}
-
-      </div>
+        </div>
+      )}
 
 
       {/* Detected Transactions */}
 
-      <div className="analytics-section">
+      <div className="anomalies-table-card">
 
-        <h2>
-          🔍 Detected Transactions
-        </h2>
+        <div className="anomalies-card-header">
+
+          <div>
+            <span className="anomalies-section-label">
+              DETECTED RECORDS
+            </span>
+
+            <h2>
+              Transactions requiring attention
+            </h2>
+
+            <p>
+              Records identified as statistically unusual
+              by the anomaly detection model.
+            </p>
+          </div>
+
+          <div className="anomalies-count-badge">
+            {anomalies.length} records
+          </div>
+
+        </div>
 
 
         {anomalies.length === 0 ? (
+          <div className="anomalies-no-records">
+            <div className="anomalies-check-icon">
+              ✓
+            </div>
 
-          <div className="empty-state">
+            <h3>
+              No anomalous transactions
+            </h3>
 
-            ✅ No anomalous transactions found.
-
+            <p>
+              There are currently no records requiring
+              anomaly review.
+            </p>
           </div>
-
         ) : (
+          <div className="anomalies-table-wrapper">
 
-          <div className="table-container">
-
-            <table className="anomaly-table">
+            <table className="anomalies-table">
 
               <thead>
-
                 <tr>
-
-                  <th>
-                    Row
-                  </th>
-
-                  <th>
-                    Date
-                  </th>
-
-                  <th>
-                    Product
-                  </th>
-
-                  <th>
-                    Quantity
-                  </th>
-
-                  <th>
-                    Price
-                  </th>
-
-                  <th>
-                    Revenue
-                  </th>
-
+                  <th>Row</th>
+                  <th>Date</th>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                  <th>Price</th>
+                  <th>Revenue</th>
                 </tr>
-
               </thead>
-
 
               <tbody>
 
                 {anomalies.map(
                   (anomaly, index) => (
-
                     <tr key={index}>
 
                       <td>
-                        {anomaly.row_number}
+                        <span className="anomaly-row-number">
+                          {anomaly.row_number}
+                        </span>
                       </td>
-
 
                       <td>
                         {anomaly.date || "-"}
                       </td>
 
-
                       <td>
-
                         <strong>
                           {anomaly.product || "-"}
                         </strong>
-
                       </td>
-
 
                       <td>
                         {anomaly.quantity ?? "-"}
                       </td>
 
-
                       <td>
-
                         ₹
                         {Number(
                           anomaly.price || 0
                         ).toLocaleString()}
-
                       </td>
 
-
                       <td>
-
-                        <strong>
-
+                        <strong className="anomaly-revenue">
                           ₹
                           {Number(
                             anomaly.revenue || 0
                           ).toLocaleString()}
-
                         </strong>
-
                       </td>
 
                     </tr>
-
                   )
                 )}
 
@@ -554,99 +468,69 @@ function Anomalies({ activeDatasetId }) {
             </table>
 
           </div>
-
         )}
 
       </div>
 
 
-      {/* ML Explanation */}
+      {/* Methodology */}
 
-      <div className="analytics-section">
+      <div className="anomalies-method-card">
 
-        <h2>
-          🧠 How Anomaly Detection Works
-        </h2>
+        <div className="anomalies-card-header">
 
-
-        <div className="product-list">
-
-
-          <div className="product-row">
-
-            <span>
-              Algorithm
+          <div>
+            <span className="anomalies-section-label">
+              DETECTION METHOD
             </span>
 
-            <strong>
-              Isolation Forest
-            </strong>
+            <h2>
+              How anomaly detection works
+            </h2>
 
+            <p>
+              OpsPilot evaluates transaction-level patterns
+              to identify observations that differ from the
+              overall dataset.
+            </p>
           </div>
 
+        </div>
 
-          <div className="product-row">
 
-            <span>
-              Input Features
-            </span>
+        <div className="anomalies-method-grid">
 
-            <strong>
-              Quantity, Price, Revenue
-            </strong>
-
+          <div>
+            <span>Algorithm</span>
+            <strong>Isolation Forest</strong>
           </div>
 
-
-          <div className="product-row">
-
-            <span>
-              Detected Records
-            </span>
-
-            <strong>
-              {anomalyCount}
-            </strong>
-
+          <div>
+            <span>Input features</span>
+            <strong>Quantity, Price, Revenue</strong>
           </div>
 
-
-          <div className="product-row">
-
-            <span>
-              Anomaly Rate
-            </span>
-
-            <strong>
-              {anomalyPercentage}%
-            </strong>
-
+          <div>
+            <span>Detected records</span>
+            <strong>{anomalyCount}</strong>
           </div>
 
-
-          <div className="product-row">
-
-            <span>
-              Purpose
-            </span>
-
-            <strong>
-              Detect unusual transactions
-            </strong>
-
+          <div>
+            <span>Anomaly rate</span>
+            <strong>{anomalyPercentage}%</strong>
           </div>
 
+          <div>
+            <span>Purpose</span>
+            <strong>Detect unusual transactions</strong>
+          </div>
 
         </div>
 
       </div>
 
-
     </div>
-
   );
-
 }
-
 
 export default Anomalies;

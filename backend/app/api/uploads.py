@@ -25,6 +25,7 @@ router = APIRouter(
     tags=["Data Upload"]
 )
 
+
 UPLOAD_FOLDER = Path("data/uploads")
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
@@ -35,7 +36,10 @@ async def upload_dataset(
     db: Session = Depends(get_db),
     current_user: str = Depends(get_current_user)
 ):
+
     try:
+
+        # Find logged-in user
         user = (
             db.query(User)
             .filter(User.username == current_user)
@@ -43,58 +47,96 @@ async def upload_dataset(
         )
 
         if not user:
+
             return JSONResponse(
                 status_code=401,
-                content={"error": "User not found"}
+                content={
+                    "error": "User not found"
+                }
             )
 
+        # Save uploaded file
         file_path = UPLOAD_FOLDER / file.filename
 
         with open(file_path, "wb") as output_file:
-            output_file.write(await file.read())
 
-        dataframe = read_dataset(str(file_path))
+            output_file.write(
+                await file.read()
+            )
 
-        dataset_info = get_dataset_info(dataframe)
+        # Read and normalize dataset
+        dataframe = read_dataset(
+            str(file_path)
+        )
 
-        quality_report = check_data_quality(dataframe)
+        # Show normalized columns in response
+        normalized_columns = list(
+            dataframe.columns
+        )
 
+        # Dataset information
+        dataset_info = get_dataset_info(
+            dataframe
+        )
+
+        # Data quality
+        quality_report = check_data_quality(
+            dataframe
+        )
+
+        # Business analytics
         business_metrics = calculate_business_metrics(
             dataframe
         )
 
+        # Save dataset record
         dataset = Dataset(
             file_name=file.filename,
-            file_type=Path(file.filename).suffix.lower(),
+            file_type=Path(
+                file.filename
+            ).suffix.lower(),
             file_path=str(file_path),
             rows=len(dataframe),
             user_id=user.id
         )
 
         db.add(dataset)
+
         db.commit()
+
         db.refresh(dataset)
 
         return {
             "message": "Dataset uploaded successfully",
             "dataset_id": dataset.id,
             "file_name": file.filename,
-            "file_type": Path(file.filename).suffix.lower(),
+            "file_type": Path(
+                file.filename
+            ).suffix.lower(),
+            "normalized_columns": normalized_columns,
             "dataset": dataset_info,
             "data_quality": quality_report,
             "business_metrics": business_metrics
         }
 
     except ValueError as error:
+
+        db.rollback()
+
         return JSONResponse(
             status_code=400,
-            content={"error": str(error)}
+            content={
+                "error": str(error)
+            }
         )
 
     except Exception as error:
+
         db.rollback()
 
         return JSONResponse(
             status_code=500,
-            content={"error": str(error)}
+            content={
+                "error": str(error)
+            }
         )

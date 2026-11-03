@@ -1,0 +1,46 @@
+
+services:
+  db:
+    image: postgres:18
+    container_name: opspilot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: opspilot
+      POSTGRES_USER: opspilot_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opspilot_user -d opspilot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: opspilot-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://opspilot_user:${POSTGRES_PASSWORD}@db:5432/opspilot
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in your .env file}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: opspilot-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
